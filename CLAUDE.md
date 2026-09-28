@@ -19,7 +19,8 @@ WhatsApp message to the team group every afternoon. The app has two phases:
   publishable key (public by design).
 - Schema, RLS and database functions: `supabase/schema.sql` (idempotent, pasted into the SQL editor by
   Nave). Starting places catalog: `supabase/seed-places.json` → `npm run seed-sql` →
-  `supabase/seed_places.sql`.
+  `supabase/seed_places.sql`. `.github/workflows/keepalive.yml` calls `public.ping()` every day so the
+  free project never pauses.
 
 ## Commands
 
