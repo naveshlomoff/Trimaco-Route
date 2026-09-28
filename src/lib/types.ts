@@ -1,6 +1,6 @@
 export type Region = 'center' | 'tlv' | 'sharon' | 'jerusalem' | 'south' | 'north' | 'unknown';
 export type PlaceKind = 'hospital' | 'clinic' | 'customer' | 'city' | 'depot' | 'other';
-export type Role = 'admin' | 'planner' | 'pending';
+export type Role = 'admin' | 'planner' | 'pending' | 'blocked';
 
 export interface Worker {
   id: string;
@@ -137,4 +137,10 @@ export interface Profile {
   username: string;
   display_name: string;
   role: Role;
+  created_at?: string;
+}
+
+/** Short code shown on a waiting device, so the admin approves the right one. */
+export function deviceCode(profileId: string): string {
+  return profileId.replace(/-/g, '').slice(0, 4).toUpperCase();
 }

@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { LOGIN_DOMAIN, SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '../config';
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '../config';
 import type { Store } from './store';
 import type { DayRow, Place, Profile, TaskRow, Worker } from './types';
 
@@ -32,21 +32,21 @@ export function createSupabaseStore(): Store {
       const { data } = await sb.auth.getSession();
       const user = data.session?.user;
       if (!user) return null;
-      const res = await sb.from('profiles').select('id, username, display_name, role').eq('id', user.id).maybeSingle();
+      const res = await sb
+        .from('profiles')
+        .select('id, username, display_name, role, created_at')
+        .eq('id', user.id)
+        .maybeSingle();
       const profile = check(res) as Profile | null;
-      const username = user.email?.split('@')[0] ?? '';
-      return profile ?? { id: user.id, username, display_name: username, role: 'planner' };
+      const name = (user.user_metadata?.name as string | undefined) ?? '';
+      return profile ?? { id: user.id, username: '', display_name: name, role: 'pending' };
     },
 
-    async signIn(username, password) {
-      const u = username.trim().toLowerCase();
-      const email = u.includes('@') ? u : `${u}@${LOGIN_DOMAIN}`;
-      const { error } = await sb.auth.signInWithPassword({ email, password });
-      return error ? 'שם משתמש או סיסמה שגויים' : null;
-    },
-
-    async signOut() {
-      await sb.auth.signOut();
+    async enter(name) {
+      const { error } = await sb.auth.signInAnonymously({ options: { data: { name: name.trim() } } });
+      if (!error) return null;
+      if (/anonymous/i.test(error.message)) return 'הכניסה עוד לא הופעלה בשרת. פנו למנהל המערכת.';
+      return `הכניסה נכשלה: ${error.message}`;
     },
 
     onAuthChange(cb) {
@@ -54,6 +54,16 @@ export function createSupabaseStore(): Store {
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') cb();
       });
       return () => data.subscription.unsubscribe();
+    },
+
+    async listProfiles() {
+      return check(
+        await sb.from('profiles').select('id, username, display_name, role, created_at').order('created_at', { ascending: false }),
+      ) as Profile[];
+    },
+
+    async updateProfile(id, patch) {
+      check(await sb.from('profiles').update(patch).eq('id', id));
     },
 
     async loadWorkers() {

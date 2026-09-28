@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { AppContext, useApp } from './appContext';
 import { isConfigured } from './config';
 import { store } from './lib/store';
-import type { Place, Profile, Worker } from './lib/types';
+import { deviceCode, type Place, type Profile, type Worker } from './lib/types';
 import { Dashboard } from './ui/admin/Dashboard';
 import { ImportChat } from './ui/admin/ImportChat';
 import { Places } from './ui/admin/Places';
+import { Users } from './ui/admin/Users';
 import { DayView } from './ui/DayView';
 import { Home } from './ui/Home';
 import { Login } from './ui/Login';
@@ -35,7 +36,7 @@ export function App({ demo }: { demo: boolean }) {
   const load = useCallback(async () => {
     try {
       const p = await store().getProfile();
-      if (p && p.role !== 'pending') {
+      if (p && (p.role === 'admin' || p.role === 'planner')) {
         const [w, pl] = await Promise.all([store().loadWorkers(), store().loadPlaces()]);
         setWorkers(w);
         setPlaces(pl);
@@ -70,12 +71,12 @@ export function App({ demo }: { demo: boolean }) {
   }
   if (profile === undefined) return <CenteredMessage title="Trimaco Route" text="טוען…" />;
   if (profile === null) return <Login />;
-  if (profile.role === 'pending') {
+  if (profile.role === 'blocked' || profile.role === 'pending') {
     return (
-      <CenteredMessage title="החשבון ממתין לאישור" text="מנהל המערכת צריך לאשר את החשבון לפני שאפשר להתחיל.">
-        <button className="btn" onClick={() => void store().signOut()}>
-          יציאה
-        </button>
+      <CenteredMessage title="אין גישה" text="למכשיר הזה אין כרגע גישה לאפליקציה.">
+        <p className="muted small">
+          קוד המכשיר: <span dir="ltr">{deviceCode(profile.id)}</span>
+        </p>
       </CenteredMessage>
     );
   }
@@ -97,6 +98,7 @@ function Shell({ path }: { path: string }) {
           { path: '/admin', label: 'לוח מנהל' },
           { path: '/admin/places', label: 'מקומות' },
           { path: '/admin/import', label: 'ייבוא' },
+          { path: '/admin/users', label: 'משתמשים' },
         ]
       : []),
   ];
@@ -111,11 +113,9 @@ function Shell({ path }: { path: string }) {
             <span>Trimaco Route</span>
             {demo && <span className="chip chip-warn">דמו</span>}
           </a>
+          {/* No sign-out: without passwords, signing out would need a new approval. */}
           <div className="header-user">
             <span className="muted">{profile.display_name}</span>
-            <button className="btn btn-ghost btn-small" onClick={() => void store().signOut()}>
-              יציאה
-            </button>
           </div>
         </div>
         {tabs.length > 1 && (
@@ -140,8 +140,10 @@ function route(path: string, isAdmin: boolean) {
   if (isAdmin && path === '/admin') return <Dashboard />;
   if (isAdmin && path === '/admin/places') return <Places />;
   if (isAdmin && path === '/admin/import') return <ImportChat />;
+  if (isAdmin && path === '/admin/users') return <Users />;
   return <Home />;
 }
+
 
 function CenteredMessage({ title, text, children }: { title: string; text: string; children?: ReactNode }) {
   return (

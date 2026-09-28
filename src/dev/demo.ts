@@ -55,6 +55,7 @@ type SeedPlace = Pick<Place, 'name' | 'aliases' | 'region' | 'kind'> & { city?: 
 
 export function createDemoStore(): Store {
   return createMemoryStore({
+    startSignedOut: new URLSearchParams(window.location.search).get('demo') === 'new',
     workers: local?.workers ?? fallbackWorkers,
     places: (seedPlaces as unknown as SeedPlace[]).map((p) => ({
       name: p.name,

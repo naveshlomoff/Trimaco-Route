@@ -35,9 +35,11 @@ export interface DaySummary {
 
 export interface Store {
   getProfile(): Promise<Profile | null>;
-  signIn(username: string, password: string): Promise<string | null>;
-  signOut(): Promise<void>;
+  /** No passwords: this device signs in with the person's name and is in right away. */
+  enter(name: string): Promise<string | null>;
   onAuthChange(cb: () => void): () => void;
+  listProfiles(): Promise<Profile[]>;
+  updateProfile(id: string, patch: Partial<Pick<Profile, 'role' | 'display_name'>>): Promise<void>;
 
   loadWorkers(): Promise<Worker[]>;
   loadPlaces(): Promise<Place[]>;

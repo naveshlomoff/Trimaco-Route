@@ -2,11 +2,14 @@
 -- Paste into Supabase → SQL Editor → Run. Safe to run again: every
 -- statement is idempotent.
 --
--- Access model: a login alone gives nothing. A user sees data only once an
--- admin has given their profile the role 'planner' or 'admin' (new logins
--- start as 'pending'). The project was created with "Automatically expose
--- new tables" OFF, so the API reaches only what is granted below, and
--- anonymous visitors get nothing at all.
+-- Access model (Nave's choice, 2026-09-28: no passwords, no approval): each
+-- phone or computer signs in anonymously with the person's name ("Allow
+-- anonymous sign-ins" must be on in Auth) and is in right away as a
+-- 'planner'. The very first device becomes 'admin'. Admins see every device
+-- in the app and can block one ('blocked' sees nothing). Setting new devices
+-- to 'pending' instead would bring back approval.
+-- The project was created with "Automatically expose new tables" OFF, so the
+-- API reaches only what is granted below; logged-out visitors get nothing.
 
 -- ============ tables ============
 
@@ -14,9 +17,12 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   username text not null unique,
   display_name text not null,
-  role text not null default 'pending' check (role in ('admin', 'planner', 'pending')),
+  role text not null default 'planner',
   created_at timestamptz not null default now()
 );
+alter table public.profiles drop constraint if exists profiles_role_check;
+alter table public.profiles add constraint profiles_role_check
+  check (role in ('admin', 'planner', 'pending', 'blocked'));
 
 create table if not exists public.workers (
   id text primary key,                          -- short latin id, e.g. 'aviv'
@@ -104,12 +110,26 @@ language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.profiles where id = auth.uid() and role in ('admin', 'planner'));
 $$;
 
--- New login → a 'pending' profile until an admin approves it.
+-- The name typed on the welcome screen travels as sign-in metadata.
+create or replace function public.profile_name(p_meta jsonb, p_email text) returns text
+language sql immutable as $$
+  select coalesce(
+    nullif(trim(p_meta ->> 'name'), ''),
+    nullif(split_part(coalesce(p_email, ''), '@', 1), ''),
+    'מכשיר חדש');
+$$;
+
+-- New device → a profile that is in right away; the very first one is the admin.
 create or replace function public.handle_new_user() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
-  insert into public.profiles (id, username, display_name)
-  values (new.id, split_part(new.email, '@', 1), split_part(new.email, '@', 1))
+  perform pg_advisory_xact_lock(7242);  -- two first devices at once: only one becomes admin
+  insert into public.profiles (id, username, display_name, role)
+  values (
+    new.id,
+    'u-' || left(new.id::text, 8),
+    public.profile_name(new.raw_user_meta_data, new.email),
+    case when exists (select 1 from public.profiles where role = 'admin') then 'planner' else 'admin' end)
   on conflict (id) do nothing;
   return new;
 end $$;
@@ -118,10 +138,24 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Users created before this script ran.
-insert into public.profiles (id, username, display_name)
-select id, split_part(email, '@', 1), split_part(email, '@', 1) from auth.users
+-- Devices that signed in before this script ran (the earliest becomes admin if there is none).
+insert into public.profiles (id, username, display_name, role)
+select
+  u.id,
+  'u-' || left(u.id::text, 8),
+  public.profile_name(u.raw_user_meta_data, u.email),
+  case
+    when row_number() over (order by u.created_at) = 1
+      and not exists (select 1 from public.profiles where role = 'admin') then 'admin'
+    else 'planner'
+  end
+from auth.users u
+where not exists (select 1 from public.profiles p where p.id = u.id)
 on conflict (id) do nothing;
+
+-- Earlier drafts of this file had an approval step.
+drop function if exists public.claim_first_admin();
+drop function if exists public.has_admin();
 
 -- A daily call from .github/workflows/keepalive.yml, so the free project is
 -- never a week without database activity. Returns nothing but "1".

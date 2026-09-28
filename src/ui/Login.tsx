@@ -1,9 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { store } from '../lib/store';
 
+/** First visit on a device: the person types their name; an admin then approves the device. */
 export function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -11,7 +11,7 @@ export function Login() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const err = await store().signIn(username, password);
+    const err = await store().enter(name);
     if (err) {
       setError(err);
       setBusy(false);
@@ -30,32 +30,13 @@ export function Login() {
           </div>
         </div>
         <label className="field">
-          <span>שם משתמש</span>
-          <input
-            type="text"
-            autoCapitalize="none"
-            autoCorrect="off"
-            autoComplete="username"
-            dir="ltr"
-            required
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
+          <span>מה השם שלך?</span>
+          <input type="text" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
         </label>
-        <label className="field">
-          <span>סיסמה</span>
-          <input
-            type="password"
-            autoComplete="current-password"
-            dir="ltr"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
+        <p className="muted small">אין סיסמה. כותבים את השם פעם אחת בכל טלפון או מחשב, וזהו.</p>
         {error && <p className="error">{error}</p>}
-        <button className="btn btn-primary btn-block" disabled={busy}>
-          {busy ? 'מתחבר…' : 'כניסה'}
+        <button className="btn btn-primary btn-block" disabled={busy || !name.trim()}>
+          {busy ? 'רגע…' : 'כניסה'}
         </button>
       </form>
     </div>

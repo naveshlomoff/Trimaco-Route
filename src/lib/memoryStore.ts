@@ -1,6 +1,7 @@
-// In-memory Store for local development (npm run dev, then open with ?demo).
-// Mirrors the database functions in supabase/schema.sql closely enough to
-// click through every screen without a login.
+// In-memory Store for local development (npm run dev, then open with ?demo,
+// or ?demo=new to start on the welcome screen). Mirrors the database
+// functions in supabase/schema.sql closely enough to click through every
+// screen without a server.
 
 import type { Store } from './store';
 import type { DayRow, Place, Profile, TaskRow, Worker } from './types';
@@ -9,7 +10,8 @@ import { normalizeKey } from './text';
 export interface MemorySeed {
   workers: Worker[];
   places: Omit<Place, 'id'>[];
-  profile?: Partial<Profile>;
+  /** Start on the welcome screen instead of signed in as an admin. */
+  startSignedOut?: boolean;
 }
 
 let counter = 0;
@@ -22,9 +24,16 @@ function withAlias(place: Place, alias: string): Place {
 }
 
 export function createMemoryStore(seed: MemorySeed): Store {
-  let signedIn = true;
   const listeners = new Set<() => void>();
-  const profile: Profile = { id: 'demo', username: 'demo', display_name: 'דמו', role: 'admin', ...seed.profile };
+  const now = new Date().toISOString();
+  let profiles: Profile[] = [
+    { id: 'c0ffee01-demo', username: 'u-c0ffee01', display_name: 'מכשיר של דוגמה', role: 'planner', created_at: now },
+  ];
+  let me: string | null = null;
+  if (!seed.startSignedOut) {
+    profiles.unshift({ id: 'ad3141aa-demo', username: 'u-ad3141aa', display_name: 'מנהל דמו', role: 'admin', created_at: now });
+    me = 'ad3141aa-demo';
+  }
   let places: Place[] = seed.places.map((p) => ({ ...p, id: newId() }));
   const days = new Map<string, DayRow>();
   let tasks: TaskRow[] = [];
@@ -32,20 +41,25 @@ export function createMemoryStore(seed: MemorySeed): Store {
 
   return {
     async getProfile() {
-      return signedIn ? profile : null;
+      return profiles.find((p) => p.id === me) ?? null;
     },
-    async signIn() {
-      signedIn = true;
+    async enter(name) {
+      const id = `${Math.random().toString(16).slice(2, 10)}-demo`;
+      const role = profiles.some((p) => p.role === 'admin') ? 'planner' : 'admin'; // first device is the admin
+      profiles.unshift({ id, username: `u-${id.slice(0, 8)}`, display_name: name.trim(), role, created_at: now });
+      me = id;
       notify();
       return null;
-    },
-    async signOut() {
-      signedIn = false;
-      notify();
     },
     onAuthChange(cb) {
       listeners.add(cb);
       return () => listeners.delete(cb);
+    },
+    async listProfiles() {
+      return profiles;
+    },
+    async updateProfile(id, patch) {
+      profiles = profiles.map((p) => (p.id === id ? { ...p, ...patch } : p));
     },
     async loadWorkers() {
       return [...seed.workers].sort((a, b) => a.sort_order - b.sort_order);
@@ -102,7 +116,7 @@ export function createMemoryStore(seed: MemorySeed): Store {
         notes: input.notes,
         source: input.source,
         message_sent_at: input.messageSentAt,
-        saved_by: profile.id,
+        saved_by: me,
         saved_at: new Date().toISOString(),
         version: (prev?.version ?? 0) + 1,
       });

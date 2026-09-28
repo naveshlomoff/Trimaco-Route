@@ -35,9 +35,12 @@ WhatsApp message to the team group every afternoon. The app has two phases:
   made-up messages; `*.local.*` files are git-ignored. The team list lives only in the database.
 - UI text is Hebrew, RTL, mobile-first (Adi uses a phone). Inputs stay at 16px (iPhone zoom).
 - Avoid regex lookbehind (`(?<=`): older iPhone Safari throws on it at parse time.
-- Access model: a login gives nothing until an admin sets `profiles.role` to `planner` or `admin`
-  (new users start `pending`). Planners see only the daily screen; admins also get `#/admin*`.
-- Logins are usernames mapped to `<username>@trimaco-route.local`. Accounts are created by an admin
-  in Supabase → Authentication; public sign-up should stay disabled.
+- Access model (Nave's explicit choice 2026-09-28: **no passwords, no approval**): each device signs in
+  with Supabase anonymous auth plus the person's name, and is in at once as `planner`. The first device
+  ever becomes `admin`. Admins manage devices in `#/admin/users` (rename, promote, block). Anyone
+  with the link can get in, so the data is only as private as the link: this was explained to Nave.
+  Planners see only the daily screen; admins also get `#/admin*`. There's no sign-out, because
+  re-entering would create a new device.
+- Supabase Auth needs "Allow anonymous sign-ins" ON (Authentication → Sign In / Providers).
 - Parser logic is in `src/lib/parser.ts`; keep `src/lib/parser.test.ts` passing and extend it with
   every new message pattern.
