@@ -123,6 +123,11 @@ insert into public.profiles (id, username, display_name)
 select id, split_part(email, '@', 1), split_part(email, '@', 1) from auth.users
 on conflict (id) do nothing;
 
+-- A daily call from .github/workflows/keepalive.yml, so the free project is
+-- never a week without database activity. Returns nothing but "1".
+create or replace function public.ping() returns int
+language sql stable as $$ select 1 $$;
+
 -- ============ write operations ============
 
 -- Replaces one day's schedule in a single transaction.
@@ -235,6 +240,7 @@ grant execute on function
   public.is_admin(), public.is_member(), public.save_day(date, jsonb, jsonb), public.add_place_alias(uuid, text),
   public.resolve_location_text(text, uuid), public.merge_places(uuid, uuid)
   to authenticated;
+grant execute on function public.ping() to anon, authenticated;
 
 alter table public.profiles enable row level security;
 alter table public.workers enable row level security;
