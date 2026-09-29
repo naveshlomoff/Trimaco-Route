@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { navigate, useApp } from '../appContext';
+import { adviseDay, type Move } from '../lib/advisor';
 import { formatDayLong, resolveDate } from '../lib/dates';
 import {
   appendToSaved,
@@ -11,20 +12,21 @@ import {
   type Resolution,
 } from '../lib/draft';
 import { parseSchedule } from '../lib/parser';
+import { canRewrite, rewriteMove } from '../lib/rewrite';
 import { store } from '../lib/store';
 import { normalizeKey } from '../lib/text';
-import type { ParsedTask, Region } from '../lib/types';
+import type { AdviceDecisionKind, ParsedTask, Region } from '../lib/types';
 import { PlaceResolver, TaskLine, type TaskState } from './components';
+import { moveKey, Suggestions, type Applied } from './Suggestions';
 
 export const SAVED_FLAG = 'trimaco-route-saved';
 
 export function Review() {
   const { workers, places, reloadPlaces } = useApp();
   const draft = useMemo(() => readDraft(), []);
-  const parsed = useMemo(
-    () => (draft ? parseSchedule(draft.text, { workers, places }) : null),
-    [draft, workers, places],
-  );
+  // the message changes when a suggestion is accepted
+  const [text, setText] = useState(() => draft?.text ?? '');
+  const parsed = useMemo(() => (text ? parseSchedule(text, { workers, places }) : null), [text, workers, places]);
   // an add-on with no day word ("מוסיפה לסידור:") is for today's schedule
   const [date, setDate] = useState(() => {
     if (draft?.date) return draft.date;
@@ -36,6 +38,8 @@ export function Review() {
   const [exists, setExists] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [declined, setDeclined] = useState<Set<string>>(() => new Set());
+  const [applied, setApplied] = useState<Applied[]>([]);
 
   useEffect(() => {
     if (!draft) navigate('/');
@@ -54,6 +58,19 @@ export function Review() {
   }, [date]);
 
   const unknowns = useMemo(() => (parsed ? collectUnknowns([parsed]) : []), [parsed]);
+
+  // Suggestions for a full schedule (not for a few lines added to one).
+  const advice = useMemo(() => {
+    if (!parsed || parsed.kind !== 'full') return null;
+    const tasks = parsed.sections
+      .flatMap((s) => s.tasks)
+      .map((t) => ({ workerId: t.workerId, placeId: placeIdOf(t, resolutions), isField: t.isField, types: t.types }));
+    // never offer to move back a stop just moved
+    const movedBack = (m: { placeId: string; from: string; to: string }) =>
+      applied.some((a) => a.move.placeId === m.placeId && a.move.from === m.to && a.move.to === m.from);
+    return adviseDay(tasks, { places, workers }, { allow: (m) => !declined.has(moveKey(m)) && !movedBack(m) });
+  }, [parsed, places, workers, resolutions, declined, applied]);
+
   if (!draft || !parsed) return null;
 
   const groupByKey = new Map(unknowns.map((g) => [g.key, g]));
@@ -61,6 +78,54 @@ export function Review() {
   const fieldStops = allTasks.filter((t) => t.isField).length;
   const pending = unknowns.filter((g) => !resolutions.has(g.key)).length;
   const shownFor = new Set<string>(); // each unknown place gets one resolver, on its first line
+
+  const workerName = (id: string) => workers.find((w) => w.id === id)?.name ?? id;
+  const placeOf = (t: ParsedTask) => placeIdOf(t, resolutions);
+
+  function changeText(next: string) {
+    setText(next);
+    writeDraft({ ...draft, text: next });
+  }
+
+  // Each answer is recorded right away, so it counts even if the day is never saved here.
+  function record(moves: Move[], decision: AdviceDecisionKind, keepExisting = false) {
+    if (!date || moves.length === 0) return;
+    const rows = moves.map((m) => ({
+      date,
+      place_id: m.placeId,
+      place_name: m.placeName,
+      from_worker: m.from,
+      to_worker: m.to,
+      saved_min: m.savedMin,
+      saved_km: m.savedKm,
+      decision,
+    }));
+    store()
+      .recordAdvice(rows, { keepExisting })
+      .catch(() => undefined);
+  }
+
+  function accept(m: Move) {
+    if (!parsed) return;
+    const out = rewriteMove(text, parsed, m, placeOf);
+    if (!out) return;
+    setApplied((a) => [...a, { move: m, before: text, freed: out.freed }]);
+    changeText(out.text);
+    record([m], 'accepted');
+  }
+
+  function decline(m: Move) {
+    setDeclined((d) => new Set(d).add(moveKey(m)));
+    record([m], 'declined');
+  }
+
+  function undo() {
+    const last = applied[applied.length - 1];
+    if (!last) return;
+    setApplied((a) => a.slice(0, -1));
+    changeText(last.before);
+    record([last.move], 'ignored');
+  }
 
   function setResolution(key: string, r: Resolution | undefined) {
     setResolutions((prev) => {
@@ -101,10 +166,11 @@ export function Review() {
     setError(null);
     try {
       const ids = await applyResolutions(unknowns, resolutions, places);
-      const input = buildSaveInput(parsed, { date, rawText: draft.text, source: 'paste', messageSentAt: null }, ids);
+      const input = buildSaveInput(parsed, { date, rawText: text, source: 'paste', messageSentAt: null }, ids);
       // an add-on joins the schedule already saved for the day instead of replacing it
       const saved = parsed.kind === 'addendum' ? await store().getDay(date) : null;
       await store().saveDay(saved ? appendToSaved(saved, input) : input);
+      record(advice?.moves ?? [], 'ignored', true); // shown, and neither taken nor skipped
       await reloadPlaces();
       writeDraft(null);
       try {
@@ -153,6 +219,19 @@ export function Review() {
           )}
         </div>
       </section>
+
+      {advice && (
+        <Suggestions
+          advice={advice}
+          applied={applied}
+          canApply={(m) => canRewrite(parsed, m, placeOf)}
+          onAccept={accept}
+          onDecline={decline}
+          onUndo={undo}
+          text={text}
+          workerName={workerName}
+        />
+      )}
 
       {parsed.sections.length === 0 && (
         <section className="card">
@@ -240,4 +319,12 @@ export function Review() {
 
 function regionOf(r: Region | undefined): Region {
   return r ?? 'unknown';
+}
+
+/** The task's place, counting an unknown name the planner has just matched to a known place. */
+function placeIdOf(t: ParsedTask, resolutions: Map<string, Resolution>): string | null {
+  if (t.placeId) return t.placeId;
+  if (t.match !== 'unknown' || !t.locationText) return null;
+  const r = resolutions.get(normalizeKey(t.locationText));
+  return r?.type === 'existing' ? r.placeId : null;
 }

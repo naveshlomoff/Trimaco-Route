@@ -27,6 +27,12 @@ export interface AdviceContext {
   workers: Worker[];
 }
 
+export interface AdviseOptions {
+  maxMoves?: number;
+  /** Leave out moves the planner already turned down. */
+  allow?: (m: { placeId: string; from: string; to: string }) => boolean;
+}
+
 export interface Stop {
   placeId: string;
   name: string;
@@ -78,7 +84,8 @@ function makePlan(depot: LatLng, workerId: string, name: string, stops: Stop[]):
   return { workerId, name, stops, route, serviceMin, totalMin: route.driveMin + serviceMin };
 }
 
-export function adviseDay(tasks: AdviceTask[], ctx: AdviceContext, maxMoves = 3): DayAdvice | null {
+export function adviseDay(tasks: AdviceTask[], ctx: AdviceContext, opts: AdviseOptions = {}): DayAdvice | null {
+  const { maxMoves = 3, allow } = opts;
   const byId = new Map(ctx.places.map((p) => [p.id, p]));
   const byName = new Map(ctx.places.map((p) => [p.name, p]));
   const depotPlace = ctx.places.find((p) => p.kind === 'depot');
@@ -134,6 +141,7 @@ export function adviseDay(tasks: AdviceTask[], ctx: AdviceContext, maxMoves = 3)
           if (b === a || !drivers.get(plans[b].workerId)?.can_lift) continue;
           const A = plans[a];
           const B = plans[b];
+          if (allow && !allow({ placeId: stop.placeId, from: A.workerId, to: B.workerId })) continue;
           const nearest = Math.min(...B.stops.map((o) => haversineKm(o.point, stop.point) * 1.25));
           if (nearest > NEAR_KM) continue;
           const newA = makePlan(depot, A.workerId, A.name, A.stops.filter((_, i) => i !== s));

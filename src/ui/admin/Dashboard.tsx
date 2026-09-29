@@ -6,9 +6,15 @@ import { seedSyncNeeded, syncSeedPlaces } from '../../lib/seed';
 import { computeShadow } from '../../lib/shadow';
 import { computeDashboard } from '../../lib/stats';
 import { store } from '../../lib/store';
-import type { TaskRow } from '../../lib/types';
+import type { AdviceDecision, Profile, TaskRow } from '../../lib/types';
 import { AdviceMoves, fmtHm } from '../Advice';
 import { Tile } from '../components';
+
+const DECISION_LABEL = { accepted: 'הועבר', declined: 'נדחה', ignored: 'בלי תשובה' } as const;
+const DECISION_CHIP = { accepted: 'chip chip-ok', declined: 'chip chip-warn', ignored: 'chip chip-muted' } as const;
+
+const durationLabel = (min: number) => (min < 60 ? `${min} דק׳` : `${fmtHm(min)} ש׳`);
+const daysLabel = (n: number) => (n === 1 ? 'ביום אחד' : `ב-${n} ימים`);
 
 const RANGES = [
   { days: 30, label: '30 יום' },
@@ -23,6 +29,9 @@ export function Dashboard() {
   const [showAll, setShowAll] = useState(false);
   const [showAllAdvice, setShowAllAdvice] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [decisions, setDecisions] = useState<AdviceDecision[] | null>(null);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [showAllDecisions, setShowAllDecisions] = useState(false);
 
   // Places need map coordinates for the advisor: fill them in from the built-in list once.
   useEffect(() => {
@@ -46,10 +55,22 @@ export function Dashboard() {
       .tasksBetween(toISODate(from), toISODate(to))
       .then((t) => alive && setTasks(t))
       .catch(() => alive && setTasks([]));
+    // before the advice_decisions table exists this just stays empty
+    store()
+      .listAdvice(toISODate(from), toISODate(to))
+      .then((d) => alive && setDecisions(d))
+      .catch(() => alive && setDecisions([]));
     return () => {
       alive = false;
     };
   }, [range]);
+
+  useEffect(() => {
+    store()
+      .listProfiles()
+      .then(setProfiles)
+      .catch(() => undefined);
+  }, []);
 
   const data = useMemo(() => (tasks ? computeDashboard(tasks, workers, places) : null), [tasks, workers, places]);
   const shadow = useMemo(
@@ -59,6 +80,9 @@ export function Dashboard() {
   const workerName = (id: string) => workers.find((w) => w.id === id)?.name ?? id;
   const adviceDays = shadow ? shadow.days.filter((d) => d.advice.moves.length > 0) : [];
   const bestDays = [...adviceDays].sort((a, b) => b.advice.savedMin - a.advice.savedMin);
+  const personName = (id: string | null | undefined) => profiles.find((p) => p.id === id)?.display_name ?? '';
+  const answered = decisions ? decisions.filter((d) => d.decision !== 'ignored').length : 0;
+  const accepted = decisions ? decisions.filter((d) => d.decision === 'accepted') : [];
 
   return (
     <div className="stack-lg">
@@ -110,8 +134,8 @@ export function Dashboard() {
             <div>
               <h2 className="h2">מה המנוע היה משנה</h2>
               <p className="muted small">
-                המנוע עבר על כל יום ובדק אילו עצירות היה עדיף לתת לנהג אחר שכבר נמצא עד 15 ק"מ משם, בלי שיום העבודה
-                שלו יעבור את 17:00. עדי לא רואה את זה עדיין.
+                המנוע עבר על כל יום שמור ובדק אילו עצירות היה עדיף לתת לנהג אחר שכבר נמצא עד 15 ק"מ משם, בלי שיום
+                העבודה שלו יעבור את 17:00. כך הוא היה משנה את הסידורים כפי שנשלחו.
               </p>
             </div>
             {locating && <p className="muted">מעדכן מיקומים על המפה…</p>}
@@ -179,6 +203,60 @@ export function Dashboard() {
                 {bestDays.length > 8 && (
                   <button className="link" onClick={() => setShowAllAdvice(!showAllAdvice)}>
                     {showAllAdvice ? 'פחות' : `הצגת כל ${bestDays.length} הימים`}
+                  </button>
+                )}
+              </>
+            )}
+          </section>
+
+          <section className="card stack">
+            <div>
+              <h2 className="h2">הצעות בזמן התכנון</h2>
+              <p className="muted small">
+                כשמדביקים סידור לפני השליחה לקבוצה, המנוע מציע העברות. כאן רואים מה נעשה עם כל הצעה: הועברה, נדחתה, או
+                שהסידור נשמר בלי תשובה.
+              </p>
+            </div>
+            {decisions === null && <p className="muted">טוען…</p>}
+            {decisions?.length === 0 && <p className="muted">עוד לא הוצגו הצעות בתקופה הזו.</p>}
+            {decisions && decisions.length > 0 && (
+              <>
+                <div className="tiles">
+                  <Tile
+                    label="הצעות שהוצגו"
+                    value={decisions.length}
+                    hint={daysLabel(new Set(decisions.map((d) => d.date)).size)}
+                  />
+                  <Tile
+                    label="התקבלו"
+                    value={accepted.length}
+                    hint={answered ? `${Math.round((100 * accepted.length) / answered)}% מההצעות שנענו` : undefined}
+                  />
+                  <Tile label="נדחו" value={decisions.filter((d) => d.decision === 'declined').length} />
+                  <Tile
+                    label="נהיגה שנחסכה (הערכה)"
+                    value={durationLabel(accepted.reduce((s, d) => s + d.saved_min, 0))}
+                    hint="מההצעות שהתקבלו"
+                  />
+                </div>
+                <ul className="overlaps">
+                  {(showAllDecisions ? decisions : decisions.slice(0, 10)).map((d) => (
+                    <li key={`${d.date}|${d.place_id}|${d.from_worker}|${d.to_worker}`}>
+                      <a href={`#/day/${d.date}`} className="overlap-date">
+                        {formatDayShort(d.date)}
+                      </a>
+                      <span className={DECISION_CHIP[d.decision]}>{DECISION_LABEL[d.decision]}</span>
+                      <span className="overlap-body">
+                        <strong>{d.place_name}</strong>: מ{workerName(d.from_worker)} ל{workerName(d.to_worker)}, כ-
+                        {d.saved_min} דק׳
+                        {personName(d.decided_by) && <span className="muted"> · {personName(d.decided_by)}</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {decisions.length > 10 && (
+                  <button className="link" onClick={() => setShowAllDecisions(!showAllDecisions)}>
+                    {showAllDecisions ? 'פחות' : `הצגת כל ${decisions.length}`}
                   </button>
                 )}
               </>

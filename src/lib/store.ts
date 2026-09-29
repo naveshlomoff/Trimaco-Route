@@ -2,7 +2,7 @@
 // (supabaseStore.ts); local development can run on an in-memory copy
 // (memoryStore.ts) to try the screens without logging in.
 
-import type { DayRow, Place, PlaceKind, Profile, Region, TaskRow, Worker } from './types';
+import type { AdviceDecision, DayRow, Place, PlaceKind, Profile, Region, TaskRow, Worker } from './types';
 
 export interface NewPlace {
   name: string;
@@ -60,6 +60,14 @@ export interface Store {
   existingDates(dates: string[]): Promise<Set<string>>;
   tasksBetween(from: string, to: string): Promise<TaskRow[]>;
   unresolvedTasks(): Promise<TaskRow[]>;
+
+  /**
+   * Suggestions shown on the paste screen and the planner's answer, one row
+   * per day, stop and pair of drivers. keepExisting: don't overwrite an answer
+   * already recorded (used for "shown, no answer").
+   */
+  recordAdvice(rows: AdviceDecision[], opts?: { keepExisting?: boolean }): Promise<void>;
+  listAdvice(from: string, to: string): Promise<AdviceDecision[]>;
 }
 
 let current: Store | null = null;

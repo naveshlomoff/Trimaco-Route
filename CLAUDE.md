@@ -2,12 +2,21 @@
 
 Advisor for Trimaco's daily logistics schedule. Adi (the coordinator) writes tomorrow's schedule as a
 WhatsApp message to the team group every afternoon. The app has two phases:
-- **Phase A (now): capture and learn.** Adi pastes the message and the app parses it into tasks per
-  worker. Unknown places are confirmed once and remembered. The WhatsApp history can be imported in
-  bulk. Adi sees nothing but "saved". Admins (Nave, Liraz) get a dashboard of patterns and overlaps
-  ("shadow mode": what an optimiser would have changed; to be added once travel times exist).
-- **Phase B (later): advise.** Suggest improvements, or build the schedule from a task list, using
-  traffic-aware travel times (Google Maps Routes API, departure-time based).
+- **Phase A: capture and learn.** Adi pastes the message and the app parses it into tasks per
+  worker. Unknown places are confirmed once and remembered. The WhatsApp history (118 days so far) is
+  imported in bulk from the admin screen.
+- **Phase B (now): advise.** `src/lib/advisor.ts` moves a stop to a driver who already has a stop
+  ≤15 road-km away, when it saves ≥10 min of driving and the receiver's day stays within 9:00–17:00
+  (max 3 moves). Distances come from place coordinates (`src/lib/geo.ts`: straight line ×1.25, speed
+  by hop length, no traffic); routes are nearest-neighbour + 2-opt from the warehouse
+  (`src/lib/routing.ts`).
+  - On the paste screen everyone sees "הצעות לשיפור" before sending the message to the group:
+    accepting one rewrites the WhatsApp message itself (`src/lib/rewrite.ts`, using the line numbers
+    the parser records per task), and "העתקת ההודעה המעודכנת" copies it. Each answer is stored in
+    `advice_decisions` (accepted / declined / ignored = saved without an answer).
+  - Admins get "shadow mode" (`src/lib/shadow.ts`: the advisor over every saved day), the advice per
+    day, and the acceptance stats on the dashboard.
+  - Not yet: traffic-aware times (Google Maps Routes API), building a schedule from a task list.
 
 ## Stack
 

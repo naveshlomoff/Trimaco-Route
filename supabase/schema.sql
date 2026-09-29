@@ -98,6 +98,24 @@ create table if not exists public.day_versions (
 );
 create index if not exists day_versions_date_idx on public.day_versions (date);
 
+-- Phase B: suggestions shown on the paste screen and what the planner did with
+-- each ('ignored' = the day was saved without an answer). One row per day,
+-- stop and pair of drivers; a later answer replaces an earlier one.
+create table if not exists public.advice_decisions (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  place_id uuid not null,                       -- no foreign key: kept when places are merged
+  place_name text not null,
+  from_worker text not null,
+  to_worker text not null,
+  saved_min int not null default 0,             -- estimated driving saved, no traffic
+  saved_km int not null default 0,
+  decision text not null check (decision in ('accepted', 'declined', 'ignored')),
+  decided_by uuid default auth.uid() references auth.users (id) on delete set null,
+  decided_at timestamptz not null default now(),
+  unique (date, place_id, from_worker, to_worker)
+);
+
 -- ============ helpers ============
 
 create or replace function public.is_admin() returns boolean
@@ -275,6 +293,8 @@ grant execute on function
   public.resolve_location_text(text, uuid), public.merge_places(uuid, uuid)
   to authenticated;
 grant execute on function public.ping() to anon, authenticated;
+grant select, insert, update on public.advice_decisions to authenticated;
+revoke all on public.advice_decisions from anon;
 
 alter table public.profiles enable row level security;
 alter table public.workers enable row level security;
@@ -282,6 +302,7 @@ alter table public.places enable row level security;
 alter table public.days enable row level security;
 alter table public.tasks enable row level security;
 alter table public.day_versions enable row level security;
+alter table public.advice_decisions enable row level security;
 
 -- profiles: see yourself; admins see and edit everyone
 drop policy if exists "profiles read" on public.profiles;
@@ -340,3 +361,13 @@ drop policy if exists "versions read" on public.day_versions;
 create policy "versions read" on public.day_versions for select to authenticated using (public.is_member());
 drop policy if exists "versions insert" on public.day_versions;
 create policy "versions insert" on public.day_versions for insert to authenticated with check (public.is_member());
+
+-- advice_decisions: members record their own answers; the dashboard reads them
+drop policy if exists "advice read" on public.advice_decisions;
+create policy "advice read" on public.advice_decisions for select to authenticated using (public.is_member());
+drop policy if exists "advice insert" on public.advice_decisions;
+create policy "advice insert" on public.advice_decisions for insert to authenticated
+  with check (public.is_member() and decided_by = auth.uid());
+drop policy if exists "advice update" on public.advice_decisions;
+create policy "advice update" on public.advice_decisions for update to authenticated
+  using (public.is_member()) with check (public.is_member() and decided_by = auth.uid());

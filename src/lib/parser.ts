@@ -72,6 +72,8 @@ interface Line {
   text: string;
   raw: string;
   bullet: boolean;
+  /** Position in the message, so a task's lines can be moved to another worker. */
+  index: number;
 }
 
 export interface PlaceIndexEntry {
@@ -160,10 +162,11 @@ function toLines(raw: string): Line[] {
   return stripMarks(raw)
     .replace(/\r\n?/g, '\n')
     .split('\n')
-    .map((l) => ({
+    .map((l, index) => ({
       raw: l.trim(),
       bullet: BULLET.test(l),
       text: stripFormatting(l.replace(BULLET, '')).replace(/\s+/g, ' ').trim(),
+      index,
     }));
 }
 
@@ -357,6 +360,9 @@ export function parseTaskLine(
     windowEnd: window.end,
     address,
     flags: detectFlags(text),
+    lineIndex: null,
+    extraLines: [],
+    sharedLine: false,
   };
 }
 
@@ -385,6 +391,8 @@ export function parseSchedule(raw: string, ctx: ParseContext): ParsedDay {
         workerName: heading.worker.name,
         label: heading.label,
         tasks: [],
+        headingLine: line.index,
+        lastLine: line.index,
       };
       sections.push(section);
       pending.set(section, []);
@@ -416,15 +424,18 @@ export function parseSchedule(raw: string, ctx: ParseContext): ParsedDay {
       vehicle.push({ workerId: findWorkerMention(line.text, ctx.workers), text: line.text });
     } else {
       pending.get(current)?.push(line);
+      current.lastLine = line.index;
     }
   }
 
   for (const section of sections) {
     const lines = pending.get(section) ?? [];
     // "גיא - מחסן" or "1. *יואב* – צפת ..." with nothing under it: the label holds the tasks
+    let fromHeading = false;
     if (lines.length === 0 && section.label) {
-      lines.push({ text: section.label, raw: section.label, bullet: false });
+      lines.push({ text: section.label, raw: section.label, bullet: false, index: section.headingLine });
       section.label = '';
+      fromHeading = true;
     }
     let context = '';
     let seq = 0;
@@ -441,12 +452,15 @@ export function parseSchedule(raw: string, ctx: ParseContext): ParsedDay {
         prev.description = prev.description ? `${prev.description} + ${extra}` : extra;
         prev.types = [...new Set([...prev.types, ...detectTypes(extra, !prev.isField)])];
         prev.flags = [...new Set([...prev.flags, ...detectFlags(extra)])];
+        prev.extraLines.push(l.index);
         continue;
       }
-      for (const part of splitByPlaces(l.text, index)) {
-        section.tasks.push(
-          parseTaskLine(part, l.raw, { id: section.workerId, label: section.workerName }, ++seq, ctx, index, context),
-        );
+      const parts = splitByPlaces(l.text, index);
+      for (const part of parts) {
+        const task = parseTaskLine(part, l.raw, { id: section.workerId, label: section.workerName }, ++seq, ctx, index, context);
+        task.lineIndex = fromHeading ? null : l.index;
+        task.sharedLine = parts.length > 1;
+        section.tasks.push(task);
       }
     }
   }

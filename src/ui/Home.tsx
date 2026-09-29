@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { navigate, useApp } from '../appContext';
 import { formatDayLong } from '../lib/dates';
-import { writeDraft } from '../lib/draft';
+import { readDraft, writeDraft } from '../lib/draft';
 import { store, type DaySummary } from '../lib/store';
 
 export function Home() {
   const { demo } = useApp();
-  const [text, setText] = useState('');
+  // back from the review screen: the message is still here (with any suggestion accepted there)
+  const [text, setText] = useState(() => readDraft()?.text ?? '');
   const [days, setDays] = useState<DaySummary[] | null>(null);
   const [samples, setSamples] = useState<string[]>([]);
   const [pasteFailed, setPasteFailed] = useState(false);
@@ -41,7 +42,10 @@ export function Home() {
       <section className="card stack">
         <div>
           <h1 className="h1">סידור חדש</h1>
-          <p className="muted">מעתיקים את הודעת הסידור מהווטסאפ ומדביקים כאן, כמו שהיא.</p>
+          <p className="muted">מעתיקים את הודעת הסידור ומדביקים כאן, כמו שהיא.</p>
+          <p className="muted small">
+            כדאי להדביק לפני השליחה לקבוצה: אם אפשר לחסוך נסיעה, תופיע הצעה, ואפשר להעתיק את ההודעה המעודכנת.
+          </p>
         </div>
         <textarea
           className="paste-box"
@@ -61,7 +65,13 @@ export function Home() {
             </button>
           )}
           {text && (
-            <button className="btn btn-ghost" onClick={() => setText('')}>
+            <button
+              className="btn btn-ghost"
+              onClick={() => {
+                setText('');
+                writeDraft(null);
+              }}
+            >
               ניקוי
             </button>
           )}

@@ -99,6 +99,23 @@ p {
   margin-top: 6px;
 }
 
+.suggestions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.suggestions > li {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--brand-soft);
+}
+
+.suggestions > li + li {
+  margin-top: 10px;
+}
+
 .small {
   font-size: 0.875rem;
 }

@@ -1,4 +1,4 @@
-import type { DayAdvice } from '../lib/advisor';
+import type { DayAdvice, Move } from '../lib/advisor';
 
 export function fmtHm(min: number): string {
   const m = Math.round(min);
@@ -7,6 +7,22 @@ export function fmtHm(min: number): string {
 
 export function stopsLabel(n: number): string {
   return n === 1 ? 'עצירה אחת' : `${n} עצירות`;
+}
+
+/** One suggestion in plain Hebrew: "שיבא: להעביר מיעקב לאביב. אביב כבר באיכילוב, 5 ק"מ משם." */
+export function MoveText({ m }: { m: Move }) {
+  return (
+    <>
+      <strong>{m.placeName}</strong>: להעביר מ{m.fromName} ל{m.toName}.{' '}
+      {m.nearName && (
+        <span className="muted">
+          {m.toName} כבר ב{m.nearName}
+          {m.nearKm ? `, ${m.nearKm} ק"מ משם` : ', באותו מקום'}.
+        </span>
+      )}{' '}
+      <span className="chip chip-ok">חוסך כ-{m.savedMin} דק׳ נהיגה</span>
+    </>
+  );
 }
 
 /** The advisor's suggestions for one day, in plain Hebrew. */
@@ -20,14 +36,7 @@ export function AdviceMoves({ advice, workerName }: { advice: DayAdvice; workerN
       <ul className="advice">
         {advice.moves.map((m, i) => (
           <li key={i}>
-            <strong>{m.placeName}</strong>: להעביר מ{m.fromName} ל{m.toName}.{' '}
-            {m.nearName && (
-              <span className="muted">
-                {m.toName} כבר ב{m.nearName}
-                {m.nearKm ? `, ${m.nearKm} ק"מ משם` : ', באותו מקום'}.
-              </span>
-            )}{' '}
-            <span className="chip chip-ok">חוסך כ-{m.savedMin} דק׳ נהיגה</span>
+            <MoveText m={m} />
           </li>
         ))}
       </ul>

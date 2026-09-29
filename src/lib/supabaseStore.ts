@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '../config';
 import type { Store } from './store';
-import type { DayRow, Place, Profile, TaskRow, Worker } from './types';
+import type { AdviceDecision, DayRow, Place, Profile, TaskRow, Worker } from './types';
 
 interface Result<T> {
   data: T | null;
@@ -162,6 +162,32 @@ export function createSupabaseStore(): Store {
           .not('location_text', 'is', null)
           .order('date', { ascending: false })
           .order('id')
+          .range(a, b),
+      );
+    },
+
+    async recordAdvice(rows, opts) {
+      if (rows.length === 0) return;
+      const { data } = await sb.auth.getSession();
+      const now = new Date().toISOString();
+      const payload = rows.map((r) => ({ ...r, decided_by: data.session?.user.id ?? null, decided_at: now }));
+      check(
+        await sb.from('advice_decisions').upsert(payload, {
+          onConflict: 'date,place_id,from_worker,to_worker',
+          ignoreDuplicates: opts?.keepExisting ?? false,
+        }),
+      );
+    },
+
+    async listAdvice(from, to) {
+      return fetchAll<AdviceDecision>((a, b) =>
+        sb
+          .from('advice_decisions')
+          .select('date, place_id, place_name, from_worker, to_worker, saved_min, saved_km, decision, decided_by, decided_at')
+          .gte('date', from)
+          .lte('date', to)
+          .order('date', { ascending: false })
+          .order('decided_at', { ascending: false })
           .range(a, b),
       );
     },

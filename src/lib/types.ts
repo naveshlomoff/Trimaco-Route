@@ -73,6 +73,12 @@ export interface ParsedTask {
   windowEnd: string | null;
   address: string | null;
   flags: string[];
+  /** Line of the message this task came from; null when it came from the worker's heading. */
+  lineIndex: number | null;
+  /** "+ ..." lines merged into this task. */
+  extraLines: number[];
+  /** The line also held tasks at other places ("איכילוב ..., באר שבע ..."). */
+  sharedLine: boolean;
 }
 
 export interface ParsedSection {
@@ -80,6 +86,9 @@ export interface ParsedSection {
   workerName: string;
   label: string;
   tasks: ParsedTask[];
+  headingLine: number;
+  /** Last line of the message that belongs to this worker. */
+  lastLine: number;
 }
 
 export interface VehicleNote {
@@ -134,6 +143,23 @@ export interface TaskRow {
   address: string | null;
   flags: string[];
   raw_line: string;
+}
+
+/** What the planner did with a suggestion on the paste screen. */
+export type AdviceDecisionKind = 'accepted' | 'declined' | 'ignored';
+
+/** One suggestion shown for a day: which stop, between which drivers, and the answer. */
+export interface AdviceDecision {
+  date: string;
+  place_id: string;
+  place_name: string;
+  from_worker: string;
+  to_worker: string;
+  saved_min: number;
+  saved_km: number;
+  decision: AdviceDecisionKind;
+  decided_by?: string | null;
+  decided_at?: string;
 }
 
 export interface Profile {

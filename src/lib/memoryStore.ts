@@ -4,7 +4,7 @@
 // screen without a server.
 
 import type { Store } from './store';
-import type { DayRow, Place, Profile, TaskRow, Worker } from './types';
+import type { AdviceDecision, DayRow, Place, Profile, TaskRow, Worker } from './types';
 import { normalizeKey } from './text';
 
 export interface MemorySeed {
@@ -37,6 +37,7 @@ export function createMemoryStore(seed: MemorySeed): Store {
   let places: Place[] = seed.places.map((p) => ({ ...p, id: newId() }));
   const days = new Map<string, DayRow>();
   let tasks: TaskRow[] = [];
+  let advice: AdviceDecision[] = [];
   const notify = () => listeners.forEach((l) => l());
 
   return {
@@ -146,6 +147,22 @@ export function createMemoryStore(seed: MemorySeed): Store {
     },
     async unresolvedTasks() {
       return tasks.filter((t) => !t.place_id && t.location_text);
+    },
+    async recordAdvice(rows, opts) {
+      const key = (r: AdviceDecision) => [r.date, r.place_id, r.from_worker, r.to_worker].join('|');
+      for (const r of rows) {
+        const exists = advice.some((a) => key(a) === key(r));
+        if (exists && opts?.keepExisting) continue;
+        advice = [
+          ...advice.filter((a) => key(a) !== key(r)),
+          { ...r, decided_by: me, decided_at: new Date().toISOString() },
+        ];
+      }
+    },
+    async listAdvice(from, to) {
+      return advice
+        .filter((a) => a.date >= from && a.date <= to)
+        .sort((a, b) => b.date.localeCompare(a.date) || (b.decided_at ?? '').localeCompare(a.decided_at ?? ''));
     },
   };
 }
