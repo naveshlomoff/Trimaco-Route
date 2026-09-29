@@ -1,7 +1,7 @@
 // "Shadow mode": the advisor run quietly over saved days, to measure what it
 // would have changed before anyone is asked to act on it.
 
-import { adviseDay, DAY_WINDOW_MIN, type AdviceTask, type DayAdvice } from './advisor';
+import { adviseDay, DAY_WINDOW_MIN, fixedTasks, type AdviceTask, type DayAdvice } from './advisor';
 import type { Place, TaskRow, Worker } from './types';
 
 export interface ShadowDay {
@@ -29,8 +29,18 @@ export interface Shadow {
   drivers: DriverLoad[];
 }
 
-export function toAdviceTasks(rows: TaskRow[]): AdviceTask[] {
-  return rows.map((t) => ({ workerId: t.worker_id, placeId: t.place_id, isField: t.is_field, types: t.task_types }));
+export function toAdviceTasks(rows: TaskRow[], places: Place[]): AdviceTask[] {
+  const fixed = fixedTasks(
+    rows.map((t) => ({
+      workerId: t.worker_id,
+      placeId: t.place_id,
+      isField: t.is_field,
+      timed: Boolean(t.window_start || t.window_end),
+      description: t.description ?? '',
+    })),
+    places,
+  );
+  return rows.map((t, i) => ({ workerId: t.worker_id, placeId: t.place_id, isField: t.is_field, types: t.task_types, fixed: fixed[i] }));
 }
 
 export function computeShadow(tasks: TaskRow[], places: Place[], workers: Worker[]): Shadow {
@@ -45,7 +55,7 @@ export function computeShadow(tasks: TaskRow[], places: Place[], workers: Worker
   const load = new Map<string, { name: string; days: number; total: number; drive: number }>();
   let driveMin = 0;
   for (const [date, rows] of [...byDate].sort((a, b) => b[0].localeCompare(a[0]))) {
-    const advice = adviseDay(toAdviceTasks(rows), { places, workers });
+    const advice = adviseDay(toAdviceTasks(rows, places), { places, workers });
     if (!advice) continue;
     days.push({ date, advice });
     for (const p of advice.before) {

@@ -5,6 +5,7 @@
 // Distances are estimates without traffic (see geo.ts).
 
 import { haversineKm, locate, type LatLng } from './geo';
+import { buildPlaceIndex, placesInText, type PlaceIndexEntry } from './parser';
 import { planRoute, serviceMinutes, type Route } from './routing';
 import type { Place, TaskType, Worker } from './types';
 
@@ -20,6 +21,57 @@ export interface AdviceTask {
   placeId: string | null;
   isField: boolean;
   types: TaskType[];
+  /** Stays with its driver: see fixedTasks. */
+  fixed?: boolean;
+}
+
+export interface TaskFacts {
+  workerId: string | null;
+  placeId: string | null;
+  isField: boolean;
+  /** A set time ("בשעה 9:00", "עד 14:30", "בין 10-12"). */
+  timed: boolean;
+  /** What to do there, where another stop may be named ("להעביר לשערי צדק"). */
+  description: string;
+}
+
+// The dashboard checks every saved day against the same catalog: build its index once.
+const indexCache = new WeakMap<Place[], PlaceIndexEntry[]>();
+function placeIndexOf(places: Place[]): PlaceIndexEntry[] {
+  let index = indexCache.get(places);
+  if (!index) {
+    index = buildPlaceIndex(places);
+    indexCache.set(places, index);
+  }
+  return index;
+}
+
+/**
+ * Tasks the advisor never moves to another driver: those with a set time
+ * (it can't tell when the other driver would get there), and stops that go
+ * together, where one line names another stop of the same driver
+ * ("איכילוב - לאסוף רשתות ... להעביר לשערי צדק" with "שערי צדק - לספק").
+ */
+export function fixedTasks(tasks: TaskFacts[], places: Place[]): boolean[] {
+  const index = placeIndexOf(places);
+  const stopsOf = new Map<string, Set<string>>();
+  for (const t of tasks) {
+    if (!t.isField || !t.workerId || !t.placeId) continue;
+    const set = stopsOf.get(t.workerId) ?? new Set<string>();
+    set.add(t.placeId);
+    stopsOf.set(t.workerId, set);
+  }
+  const linked = new Set<string>();
+  for (const t of tasks) {
+    if (!t.isField || !t.workerId || !t.placeId) continue;
+    for (const other of placesInText(t.description, index)) {
+      if (other.id !== t.placeId && stopsOf.get(t.workerId)?.has(other.id)) {
+        linked.add(`${t.workerId}|${t.placeId}`);
+        linked.add(`${t.workerId}|${other.id}`);
+      }
+    }
+  }
+  return tasks.map((t) => t.timed || linked.has(`${t.workerId}|${t.placeId}`));
 }
 
 export interface AdviceContext {
@@ -38,6 +90,8 @@ export interface Stop {
   name: string;
   point: LatLng;
   serviceMin: number;
+  /** Stays with this driver (a set time, or it goes with another of the driver's stops). */
+  fixed: boolean;
 }
 
 export interface DriverPlan {
@@ -95,7 +149,7 @@ export function adviseDay(tasks: AdviceTask[], ctx: AdviceContext, opts: AdviseO
   const drivers = new Map(ctx.workers.filter((w) => w.can_drive && !w.is_technical).map((w) => [w.id, w]));
 
   // one stop per driver and place, with the work done there
-  const grouped = new Map<string, Map<string, { types: Set<TaskType>; count: number }>>();
+  const grouped = new Map<string, Map<string, { types: Set<TaskType>; count: number; fixed: boolean }>>();
   let unplaced = 0;
   for (const t of tasks) {
     if (!t.isField || !t.workerId || !drivers.has(t.workerId)) continue;
@@ -105,9 +159,10 @@ export function adviseDay(tasks: AdviceTask[], ctx: AdviceContext, opts: AdviseO
       continue;
     }
     const perWorker = grouped.get(t.workerId) ?? new Map();
-    const stop = perWorker.get(place.id) ?? { types: new Set<TaskType>(), count: 0 };
+    const stop = perWorker.get(place.id) ?? { types: new Set<TaskType>(), count: 0, fixed: false };
     t.types.forEach((ty) => stop.types.add(ty));
     stop.count++;
+    stop.fixed ||= Boolean(t.fixed);
     perWorker.set(place.id, stop);
     grouped.set(t.workerId, perWorker);
   }
@@ -124,6 +179,7 @@ export function adviseDay(tasks: AdviceTask[], ctx: AdviceContext, opts: AdviseO
           name: place.name,
           point: locate(place, byName)!,
           serviceMin: serviceMinutes([...s.types]) + EXTRA_TASK_MIN * (s.count - 1),
+          fixed: s.fixed,
         };
       }),
     ),
@@ -137,6 +193,7 @@ export function adviseDay(tasks: AdviceTask[], ctx: AdviceContext, opts: AdviseO
     for (let a = 0; a < plans.length; a++) {
       for (let s = 0; s < plans[a].stops.length; s++) {
         const stop = plans[a].stops[s];
+        if (stop.fixed) continue;
         for (let b = 0; b < plans.length; b++) {
           if (b === a || !drivers.get(plans[b].workerId)?.can_lift) continue;
           const A = plans[a];

@@ -99,6 +99,57 @@ describe('rewriteMove', () => {
     expect(placesOf(out.text, 'dani')).toEqual(['איכילוב']);
   });
 
+  it('takes the sub-heading along with a line that was under one', () => {
+    const msg = [
+      'סידור לצוות לוגיסטיקה למחר:',
+      '*דני*',
+      '• שיבא - לספק רשתות',
+      'אספקת הזמנות PRO:',
+      '1.\tאבן יהודה – כללית',
+      '*רוני*',
+      '• רעננה - לספק',
+    ].join('\n');
+    const out = rewriteMove(msg, parseSchedule(msg, ctx), { placeId: 'אבן יהודה', from: 'dani', to: 'roni' })!;
+    expect(out.text.split('\n')).toEqual([
+      'סידור לצוות לוגיסטיקה למחר:',
+      '*דני*',
+      '• שיבא - לספק רשתות',
+      '*רוני*',
+      '• רעננה - לספק',
+      'אספקת הזמנות PRO:',
+      '1.\tאבן יהודה – כללית',
+    ]);
+    const moved = parseSchedule(out.text, ctx).sections[1].tasks[1];
+    expect(moved).toMatchObject({ placeId: 'אבן יהודה', types: ['delivery'] });
+  });
+
+  it('keeps a moved line out of the receiver\'s sub-heading lists', () => {
+    const msg = [
+      'סידור לצוות לוגיסטיקה למחר:',
+      '*דני*',
+      '• הרצליה מדיקל סנטר - לאסוף רשתות',
+      '*רוני*',
+      '• רעננה - לאסוף ציוד',
+      'אספקת הזמנות:',
+      '1.\tגבעתיים',
+      '2.\tרמת גן',
+    ].join('\n');
+    const out = rewriteMove(msg, parseSchedule(msg, ctx), { placeId: 'הרצליה מדיקל סנטר', from: 'dani', to: 'roni' })!;
+    expect(out.text.split('\n')).toEqual([
+      'סידור לצוות לוגיסטיקה למחר:',
+      '*דני*',
+      '• מחסן',
+      '*רוני*',
+      '• רעננה - לאסוף ציוד',
+      '• הרצליה מדיקל סנטר - לאסוף רשתות',
+      'אספקת הזמנות:',
+      '1.\tגבעתיים',
+      '2.\tרמת גן',
+    ]);
+    const moved = parseSchedule(out.text, ctx).sections[1].tasks[1];
+    expect(moved).toMatchObject({ placeId: 'הרצליה מדיקל סנטר', types: ['pickup'] });
+  });
+
   it('declines to rewrite a stop that shares its line with other stops', () => {
     const msg = 'סידור לצוות לוגיסטיקה למחר:\n1.\t*דני* – איכילוב לספק ארגז, שיבא לספק הזמנה\n2.\t*רוני* – גבעתיים לספק';
     const day = parseSchedule(msg, ctx);

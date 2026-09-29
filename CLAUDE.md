@@ -7,9 +7,10 @@ WhatsApp message to the team group every afternoon. The app has two phases:
   imported in bulk from the admin screen.
 - **Phase B (now): advise.** `src/lib/advisor.ts` moves a stop to a driver who already has a stop
   ≤15 road-km away, when it saves ≥10 min of driving and the receiver's day stays within 9:00–17:00
-  (max 3 moves). Distances come from place coordinates (`src/lib/geo.ts`: straight line ×1.25, speed
-  by hop length, no traffic); routes are nearest-neighbour + 2-opt from the warehouse
-  (`src/lib/routing.ts`).
+  (max 3 moves). A stop never moves when it has a set time, or when one of the driver's lines names
+  another of their stops ("לאסוף באיכילוב ... להעביר לשערי צדק"): see `fixedTasks`. Distances come
+  from place coordinates (`src/lib/geo.ts`: straight line ×1.25, speed by hop length, no traffic);
+  routes are nearest-neighbour + 2-opt from the warehouse (`src/lib/routing.ts`).
   - On the paste screen everyone sees "הצעות לשיפור" before sending the message to the group:
     accepting one rewrites the WhatsApp message itself (`src/lib/rewrite.ts`, using the line numbers
     the parser records per task), and "העתקת ההודעה המעודכנת" copies it. Each answer is stored in

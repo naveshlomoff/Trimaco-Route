@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adviseDay, type AdviceTask } from './advisor';
+import { adviseDay, fixedTasks, type AdviceTask } from './advisor';
 import { planRoute } from './routing';
 import type { Place, Worker } from './types';
 
@@ -64,6 +64,35 @@ describe('adviseDay', () => {
     expect(advice.moves[0]).toMatchObject({ placeName: 'סורוקה', fromName: 'רוני', toName: 'דני', nearName: 'אסותא באר שבע' });
     expect(advice.savedMin).toBeGreaterThan(100);
     expect(advice.freed).toEqual(['roni']);
+  });
+
+  it('leaves a stop with a set time with its driver', () => {
+    const soroka = { ...task('roni', 'סורוקה'), fixed: true };
+    const advice = adviseDay([task('dani', 'איכילוב'), task('dani', 'אסותא באר שבע'), soroka], { places, workers })!;
+    // Soroka stays with Roni; the stop next to it goes to him instead
+    expect(advice.moves.map((m) => m.placeName)).not.toContain('סורוקה');
+    expect(advice.moves[0]).toMatchObject({ placeName: 'אסותא באר שבע', fromName: 'דני', toName: 'רוני' });
+  });
+
+  it('knows which stops stay put: a set time, or two stops of one driver that go together', () => {
+    const fact = (workerId: string, placeId: string, description: string, timed = false) => ({
+      workerId,
+      placeId,
+      isField: true,
+      timed,
+      description,
+    });
+    const fixed = fixedTasks(
+      [
+        fact('dani', 'איכילוב', 'לאסוף רשתות ולהעביר לסורוקה'),
+        fact('dani', 'סורוקה', 'לספק רשתות'),
+        fact('roni', 'אסותא באר שבע', 'לספק הזמנה'),
+        fact('roni', 'איכילוב', 'אספקה', true),
+      ],
+      places,
+    );
+    // Dani carries the sets from Ichilov to Soroka; Roni's other stop just names no stop of his
+    expect(fixed).toEqual([true, true, false, true]);
   });
 
   it('does not send a driver across the country', () => {

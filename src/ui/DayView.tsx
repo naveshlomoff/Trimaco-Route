@@ -60,7 +60,7 @@ export function DayView({ date }: { date: string }) {
   }
   const sorted = [...groups].sort((a, b) => (order.get(a[0]) ?? 99) - (order.get(b[0]) ?? 99));
   const fieldStops = tasks.filter((t) => t.is_field).length;
-  const advice = profile.role === 'admin' ? adviseDay(toAdviceTasks(tasks), { places, workers }) : null;
+  const advice = profile.role === 'admin' ? adviseDay(toAdviceTasks(tasks, places), { places, workers }) : null;
   const workerName = (id: string) => workers.find((w) => w.id === id)?.name ?? id;
 
   function edit() {

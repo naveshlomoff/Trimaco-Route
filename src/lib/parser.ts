@@ -140,6 +140,16 @@ export function findPlaceInText(text: string, index: PlaceIndexEntry[]): Place |
   return null;
 }
 
+/** Every known place named inside a line ("... להעביר לשערי צדק"). */
+export function placesInText(text: string, index: PlaceIndexEntry[]): Place[] {
+  const key = normalizeKey(text);
+  const found = new Map<string, Place>();
+  for (const e of index) {
+    if (e.inText?.test(key)) found.set(e.place.id, e.place);
+  }
+  return [...found.values()];
+}
+
 function fuzzyCandidates(key: string, index: PlaceIndexEntry[]): PlaceCandidate[] {
   const words = key.split(' ');
   const best = new Map<string, PlaceCandidate>();
@@ -363,6 +373,7 @@ export function parseTaskLine(
     lineIndex: null,
     extraLines: [],
     sharedLine: false,
+    contextLine: null,
   };
 }
 
@@ -438,11 +449,13 @@ export function parseSchedule(raw: string, ctx: ParseContext): ParsedDay {
       fromHeading = true;
     }
     let context = '';
+    let contextLine: number | null = null;
     let seq = 0;
     for (const l of lines) {
       // "אספקת הזמנות PRO:" introduces the lines under it
       if (!l.bullet && /[:：]$/.test(l.text) && !findPlaceInText(l.text, index)) {
         context = l.text.replace(/[:：]$/, '');
+        contextLine = l.index;
         continue;
       }
       // "+ להחזיר ארגז השלמות" belongs to the task above it
@@ -460,6 +473,7 @@ export function parseSchedule(raw: string, ctx: ParseContext): ParsedDay {
         const task = parseTaskLine(part, l.raw, { id: section.workerId, label: section.workerName }, ++seq, ctx, index, context);
         task.lineIndex = fromHeading ? null : l.index;
         task.sharedLine = parts.length > 1;
+        task.contextLine = contextLine;
         section.tasks.push(task);
       }
     }

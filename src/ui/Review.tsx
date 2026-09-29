@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { navigate, useApp } from '../appContext';
-import { adviseDay, type Move } from '../lib/advisor';
+import { adviseDay, fixedTasks, type Move } from '../lib/advisor';
 import { formatDayLong, resolveDate } from '../lib/dates';
 import {
   appendToSaved,
@@ -62,9 +62,16 @@ export function Review() {
   // Suggestions for a full schedule (not for a few lines added to one).
   const advice = useMemo(() => {
     if (!parsed || parsed.kind !== 'full') return null;
-    const tasks = parsed.sections
-      .flatMap((s) => s.tasks)
-      .map((t) => ({ workerId: t.workerId, placeId: placeIdOf(t, resolutions), isField: t.isField, types: t.types }));
+    const facts = parsed.sections.flatMap((s) => s.tasks).map((t) => ({
+      workerId: t.workerId,
+      placeId: placeIdOf(t, resolutions),
+      isField: t.isField,
+      types: t.types,
+      timed: Boolean(t.windowStart || t.windowEnd),
+      description: t.description,
+    }));
+    const fixed = fixedTasks(facts, places);
+    const tasks = facts.map((t, i) => ({ ...t, fixed: fixed[i] }));
     // never offer to move back a stop just moved
     const movedBack = (m: { placeId: string; from: string; to: string }) =>
       applied.some((a) => a.move.placeId === m.placeId && a.move.from === m.to && a.move.to === m.from);

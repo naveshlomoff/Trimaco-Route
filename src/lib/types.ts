@@ -79,6 +79,8 @@ export interface ParsedTask {
   extraLines: number[];
   /** The line also held tasks at other places ("איכילוב ..., באר שבע ..."). */
   sharedLine: boolean;
+  /** The sub-heading line the task sits under ("אספקת הזמנות PRO:"), if any. */
+  contextLine: number | null;
 }
 
 export interface ParsedSection {
