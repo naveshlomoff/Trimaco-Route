@@ -51,7 +51,12 @@ const fallbackSample = `שלום לכולם,
 
 קחו בחשבון לשינויים`;
 
-type SeedPlace = Pick<Place, 'name' | 'aliases' | 'region' | 'kind'> & { city?: string; address?: string };
+type SeedPlace = Pick<Place, 'name' | 'aliases' | 'region' | 'kind'> & {
+  city?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+};
 
 export function createDemoStore(): Store {
   return createMemoryStore({
@@ -64,8 +69,8 @@ export function createDemoStore(): Store {
       kind: p.kind,
       city: p.city ?? null,
       address: p.address ?? null,
-      lat: null,
-      lng: null,
+      lat: p.lat ?? null,
+      lng: p.lng ?? null,
       notes: null,
     })),
   });

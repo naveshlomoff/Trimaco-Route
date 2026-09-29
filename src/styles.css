@@ -64,8 +64,39 @@ p {
   font-weight: 700;
 }
 
+.h3 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 8px 0 0;
+}
+
 .muted {
   color: var(--muted);
+}
+
+.bar {
+  display: inline-block;
+  width: 80px;
+  height: 8px;
+  border-radius: 4px;
+  background: #e6ecee;
+  vertical-align: middle;
+  overflow: hidden;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--brand);
+}
+
+.advice {
+  margin: 0;
+  padding-inline-start: 18px;
+}
+
+.advice > li + li {
+  margin-top: 6px;
 }
 
 .small {

@@ -82,6 +82,8 @@ export function createSupabaseStore(): Store {
         aliases: p.aliases ?? [],
         city: p.city ?? null,
         address: p.address ?? null,
+        lat: p.lat ?? null,
+        lng: p.lng ?? null,
       };
       return check(await sb.from('places').insert(row).select('*').single()) as Place;
     },

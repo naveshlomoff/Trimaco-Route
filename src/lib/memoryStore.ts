@@ -77,8 +77,8 @@ export function createMemoryStore(seed: MemorySeed): Store {
         kind: p.kind,
         city: p.city ?? null,
         address: p.address ?? null,
-        lat: null,
-        lng: null,
+        lat: p.lat ?? null,
+        lng: p.lng ?? null,
         notes: null,
       };
       places.push(place);

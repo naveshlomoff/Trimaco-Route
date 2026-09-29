@@ -192,6 +192,13 @@ describe('older message formats', () => {
     expect(maya[0]).toMatchObject({ isField: false, types: ['off'] });
   });
 
+  it('knows field work written with a final letter changed ("תיקון" → "תיקונים")', () => {
+    const day = parseSchedule('סידור צוות לוגיסטיקה למחר:\n*שחר* - שירות טכני\n• שירות תיקונים אצל לקוחות\n• עבודה במפעל', ctx);
+    const [repairs, factory] = day.sections[0].tasks;
+    expect(repairs).toMatchObject({ isField: true, match: 'none' });
+    expect(factory.match).toBe('inhouse');
+  });
+
   it('reads a whole worker on one numbered line, one task per place', () => {
     const msg = 'סידור לצוות לוגיסטיקה למחר:\n1.\t*דני* – איכילוב לספק ארגז, באר שבע לספק הזמנה של PRO\n2.\t*רוני* – מחסן';
     const day = parseSchedule(msg, ctx);

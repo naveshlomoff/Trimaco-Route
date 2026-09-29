@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../appContext';
 import { formatDayShort, toISODate } from '../../lib/dates';
 import { REGION_LABELS, REGION_ORDER } from '../../lib/labels';
+import { seedSyncNeeded, syncSeedPlaces } from '../../lib/seed';
+import { computeShadow } from '../../lib/shadow';
 import { computeDashboard } from '../../lib/stats';
 import { store } from '../../lib/store';
 import type { TaskRow } from '../../lib/types';
+import { AdviceMoves, fmtHm } from '../Advice';
 import { Tile } from '../components';
 
 const RANGES = [
@@ -14,10 +17,23 @@ const RANGES = [
 ];
 
 export function Dashboard() {
-  const { workers, places } = useApp();
+  const { workers, places, reloadPlaces } = useApp();
   const [range, setRange] = useState(90);
   const [tasks, setTasks] = useState<TaskRow[] | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [showAllAdvice, setShowAllAdvice] = useState(false);
+  const [locating, setLocating] = useState(false);
+
+  // Places need map coordinates for the advisor: fill them in from the built-in list once.
+  useEffect(() => {
+    if (!seedSyncNeeded(places)) return;
+    setLocating(true);
+    syncSeedPlaces(places)
+      .then(() => reloadPlaces())
+      .catch(() => undefined)
+      .finally(() => setLocating(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -36,7 +52,13 @@ export function Dashboard() {
   }, [range]);
 
   const data = useMemo(() => (tasks ? computeDashboard(tasks, workers, places) : null), [tasks, workers, places]);
+  const shadow = useMemo(
+    () => (tasks && !locating ? computeShadow(tasks, places, workers) : null),
+    [tasks, workers, places, locating],
+  );
   const workerName = (id: string) => workers.find((w) => w.id === id)?.name ?? id;
+  const adviceDays = shadow ? shadow.days.filter((d) => d.advice.moves.length > 0) : [];
+  const bestDays = [...adviceDays].sort((a, b) => b.advice.savedMin - a.advice.savedMin);
 
   return (
     <div className="stack-lg">
@@ -52,7 +74,7 @@ export function Dashboard() {
           </div>
         </div>
         <p className="muted small">
-          שלב א׳: המערכת לומדת מהסידורים של עדי. זמני נסיעה ופקקים יתווספו כשנחבר את Google Maps.
+          כל המספרים נלמדים מהסידורים של עדי. זמני הנסיעה הם הערכה לפי מרחק על המפה, בלי פקקים.
         </p>
       </section>
 
@@ -83,6 +105,85 @@ export function Dashboard() {
                 : `${data.unresolvedTexts} מקומות עוד לא זוהו. לחיצה כאן כדי לשייך אותם.`}
             </a>
           )}
+
+          <section className="card stack">
+            <div>
+              <h2 className="h2">מה המנוע היה משנה</h2>
+              <p className="muted small">
+                המנוע עבר על כל יום ובדק אילו עצירות היה עדיף לתת לנהג אחר שכבר נמצא עד 15 ק"מ משם, בלי שיום העבודה
+                שלו יעבור את 17:00. עדי לא רואה את זה עדיין.
+              </p>
+            </div>
+            {locating && <p className="muted">מעדכן מיקומים על המפה…</p>}
+            {shadow && (
+              <>
+                <div className="tiles">
+                  <Tile label="ימים עם הצעה" value={`${shadow.daysWithAdvice} מתוך ${shadow.days.length}`} />
+                  <Tile
+                    label="שעות נהיגה שנחסכות"
+                    value={Math.round(shadow.savedMin / 60)}
+                    hint={`${shadow.driveMin ? Math.round((100 * shadow.savedMin) / shadow.driveMin) : 0}% מהנהיגה`}
+                  />
+                  <Tile
+                    label="חיסכון ביום עם הצעה"
+                    value={`${shadow.daysWithAdvice ? Math.round(shadow.savedMin / shadow.daysWithAdvice) : 0} דק׳`}
+                  />
+                  <Tile label="פעמים שנהג מתפנה למחסן" value={shadow.freedDriverDays} />
+                </div>
+
+                <h3 className="h3">עומס לפי נהג (הערכה)</h3>
+                <div className="table-wrap">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>נהג</th>
+                        <th>ימים בשטח</th>
+                        <th>יום ממוצע</th>
+                        <th>מתוכו נהיגה</th>
+                        <th>ניצולת 9:00–17:00</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {shadow.drivers.map((d) => (
+                        <tr key={d.workerId}>
+                          <td>{d.name}</td>
+                          <td>{d.days}</td>
+                          <td>{fmtHm(d.avgDayMin)}</td>
+                          <td>{fmtHm(d.avgDriveMin)}</td>
+                          <td>
+                            <span className="bar">
+                              <span style={{ width: `${Math.min(100, Math.round(d.utilization * 100))}%` }} />
+                            </span>{' '}
+                            {Math.round(d.utilization * 100)}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <h3 className="h3">הימים עם החיסכון הגדול ביותר</h3>
+                <ul className="overlaps">
+                  {(showAllAdvice ? bestDays : bestDays.slice(0, 8)).map((d) => (
+                    <li key={d.date} className="stack-sm">
+                      <div className="row wrap">
+                        <a href={`#/day/${d.date}`} className="overlap-date">
+                          {formatDayShort(d.date)}
+                        </a>
+                        <span className="chip chip-ok">−{d.advice.savedMin} דק׳ נהיגה</span>
+                      </div>
+                      <AdviceMoves advice={d.advice} workerName={workerName} />
+                    </li>
+                  ))}
+                </ul>
+                {bestDays.length > 8 && (
+                  <button className="link" onClick={() => setShowAllAdvice(!showAllAdvice)}>
+                    {showAllAdvice ? 'פחות' : `הצגת כל ${bestDays.length} הימים`}
+                  </button>
+                )}
+              </>
+            )}
+          </section>
 
           <section className="card stack">
             <div>

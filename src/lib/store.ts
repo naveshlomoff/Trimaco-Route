@@ -11,6 +11,8 @@ export interface NewPlace {
   aliases?: string[];
   city?: string | null;
   address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export type NewTask = Omit<TaskRow, 'id' | 'date'>;

@@ -3,7 +3,10 @@ import { navigate, useApp } from '../appContext';
 import { formatDayLong } from '../lib/dates';
 import { writeDraft } from '../lib/draft';
 import { store } from '../lib/store';
+import { adviseDay } from '../lib/advisor';
+import { toAdviceTasks } from '../lib/shadow';
 import type { DayRow, TaskRow } from '../lib/types';
+import { AdviceMoves, fmtHm, stopsLabel } from './Advice';
 import { TaskLine } from './components';
 import { SAVED_FLAG } from './Review';
 
@@ -57,6 +60,8 @@ export function DayView({ date }: { date: string }) {
   }
   const sorted = [...groups].sort((a, b) => (order.get(a[0]) ?? 99) - (order.get(b[0]) ?? 99));
   const fieldStops = tasks.filter((t) => t.is_field).length;
+  const advice = profile.role === 'admin' ? adviseDay(toAdviceTasks(tasks), { places, workers }) : null;
+  const workerName = (id: string) => workers.find((w) => w.id === id)?.name ?? id;
 
   function edit() {
     writeDraft({ text: day.raw_text, date: day.date });
@@ -90,6 +95,31 @@ export function DayView({ date }: { date: string }) {
           )}
         </div>
       </section>
+
+      {advice && advice.before.length > 0 && (
+        <section className="card stack-sm">
+          <h2 className="h2">מה המנוע היה מציע</h2>
+          <AdviceMoves advice={advice} workerName={workerName} />
+          <h3 className="h3">יום משוער לכל נהג (נהיגה ועצירות)</h3>
+          <ul className="plain">
+            {advice.before.map((p) => {
+              const after = advice.after.find((q) => q.workerId === p.workerId);
+              const changed = advice.moves.length > 0 && after && Math.round(after.totalMin) !== Math.round(p.totalMin);
+              return (
+                <li key={p.workerId}>
+                  {p.name}: {fmtHm(p.totalMin)}
+                  {changed && ` ← ${after.stops.length ? fmtHm(after.totalMin) : 'בלי שטח'}`}
+                  <span className="muted small">
+                    {' '}
+                    · {stopsLabel(p.stops.length)}, {Math.round(p.route.km)} ק"מ
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="muted small">הערכה לפי מרחק על המפה, בלי פקקים. רק מנהלים רואים את זה.</p>
+        </section>
+      )}
 
       {sorted.map(([key, list]) => {
         const worker = workers.find((w) => w.id === key);
