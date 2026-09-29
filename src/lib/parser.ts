@@ -52,7 +52,8 @@ const TASK_START = /^(לאסוף|איסוף|לספק|אספקה|אספקת|לה�
 // Work at a customer's site. A line with no place and none of these is warehouse work.
 const FIELD_VERB = /(לספק|אספק|לאסוף|איסוף|אסיפה|להביא|להחזיר|התקנ|להתקין|קריאת\s+שירות|תיקון|לגלגל|לסגור|להחתים|למסור|מסירת)/;
 // Warehouse work even when a hospital is mentioned ("הכנת הזמנות לאיכילוב").
-const INHOUSE_ALWAYS = /^(ה?מחסן|הזמנות|ה?משרד|ה?מפעל)(\s|$|[-–—+,.:])|^(הכנת|אריזת|קליטת|הרכבת)\s|(במחסן|במפעל|במשרד)/;
+const INHOUSE_ALWAYS =
+  /^(ה?מחסן|הזמנות|ה?משרד|ה?מפעל|ה?מעבדה)(\s|$|[-–—+,.:])|^(הכנת|אריזת|קליטת|הרכבת)\s|(במחסן|במפעל|במשרד|במעבדה)/;
 // Warehouse work unless a customer site is named ("סידור מדפים באיכילוב" is a field visit).
 const INHOUSE_UNLESS_PLACE = /^(סידור|ספירת|ספירה)\s/;
 const ABSENCE = /^(חופש|חופשה|מחלה|מילואים|יום חופש|לא עובד|לא עובדת)(\s|$|[.,!])/;

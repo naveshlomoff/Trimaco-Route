@@ -1,7 +1,7 @@
 -- Generated from seed-places.json by scripts/build-seed-sql.mjs; edit the JSON, not this file.
 -- Starting catalog: Trimaco's warehouse, major hospitals and cities. Safe to run again.
 insert into public.places (name, aliases, region, kind, city, address) values
-  ('מחסן נס ציונה', array['מחסן', 'המחסן', 'מפעל', 'המפעל', 'משרד', 'המשרד', 'טרימקו', 'הזמנות']::text[], 'center', 'depot', 'נס ציונה', 'אילן רמון 5, נס ציונה'),
+  ('מחסן נס ציונה', array['מחסן', 'המחסן', 'מפעל', 'המפעל', 'משרד', 'המשרד', 'טרימקו', 'הזמנות', 'מעבדה', 'המעבדה']::text[], 'center', 'depot', 'נס ציונה', 'אילן רמון 5, נס ציונה'),
   ('איכילוב', array['סוראסקי', 'תל אביב סוראסקי', 'איכלוב']::text[], 'tlv', 'hospital', 'תל אביב', null),
   ('שיבא', array['תל השומר', 'שיבא תל השומר', 'שיבה']::text[], 'tlv', 'hospital', 'רמת גן', null),
   ('וולפסון', array['וולפסון חולון', 'ולפסון']::text[], 'tlv', 'hospital', 'חולון', null),
