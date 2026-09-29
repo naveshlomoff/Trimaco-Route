@@ -78,7 +78,9 @@ export function Dashboard() {
 
           {data.unresolvedTexts > 0 && (
             <a className="notice" href="#/admin/places">
-              {data.unresolvedTexts} מקומות עוד לא זוהו. לחיצה כאן כדי לשייך אותם.
+              {data.unresolvedTexts === 1
+                ? 'מקום אחד עוד לא זוהה. לחיצה כאן כדי לשייך אותו.'
+                : `${data.unresolvedTexts} מקומות עוד לא זוהו. לחיצה כאן כדי לשייך אותם.`}
             </a>
           )}
 
