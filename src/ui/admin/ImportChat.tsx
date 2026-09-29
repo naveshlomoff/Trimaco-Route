@@ -1,23 +1,17 @@
 import { unzipSync } from 'fflate';
 import { useMemo, useState } from 'react';
 import { useApp } from '../../appContext';
-import { formatDayShort, resolveDate } from '../../lib/dates';
+import { formatDayShort } from '../../lib/dates';
 import { applyResolutions, buildSaveInput, collectUnknowns, type Resolution } from '../../lib/draft';
-import { looksLikeSchedule, parseSchedule } from '../../lib/parser';
+import { historyRawText, readHistory, type HistoryDay } from '../../lib/history';
+import { syncSeedPlaces } from '../../lib/seed';
 import { store } from '../../lib/store';
-import type { ParsedDay } from '../../lib/types';
-import { parseChatExport, type ChatMessage } from '../../lib/whatsapp';
 import { PlaceResolver } from '../components';
-
-interface Found {
-  date: string;
-  message: ChatMessage;
-  day: ParsedDay;
-}
 
 type Phase =
   | { step: 'pick' }
-  | { step: 'review'; messages: number; found: Found[]; existing: Set<string> }
+  | { step: 'reading' }
+  | { step: 'review'; messages: number; days: HistoryDay[]; existing: Set<string>; addons: number }
   | { step: 'saving'; done: number; total: number }
   | { step: 'done'; saved: number; skipped: number };
 
@@ -36,44 +30,53 @@ export function ImportChat() {
   const [resolutions, setResolutions] = useState<Map<string, Resolution>>(new Map());
   const [overwrite, setOverwrite] = useState(false);
 
-  const unknowns = useMemo(() => (phase.step === 'review' ? collectUnknowns(phase.found.map((f) => f.day)) : []), [phase]);
+  const unknowns = useMemo(() => (phase.step === 'review' ? collectUnknowns(phase.days.map((d) => d.day)) : []), [phase]);
+  const pending = unknowns.filter((g) => !resolutions.has(g.key)).length;
 
   async function onFile(file: File) {
     setError(null);
+    setPhase({ step: 'reading' });
     try {
       const text = await readExport(file);
-      const messages = parseChatExport(text);
-      const byDate = new Map<string, Found>();
-      for (const m of messages) {
-        if (!looksLikeSchedule(m.text, workers)) continue;
-        const day = parseSchedule(m.text, { workers, places });
-        const date = resolveDate(day.dateHint, m.sentAt);
-        const prev = byDate.get(date);
-        // a later message for the same day is a corrected schedule
-        if (!prev || prev.message.sentAt <= m.sentAt) byDate.set(date, { date, message: m, day });
-      }
-      const found = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
-      const existing = await store().existingDates(found.map((f) => f.date));
+      // first bring the catalog up to date with the built-in list of hospitals and cities
+      await syncSeedPlaces(places);
+      const fresh = await store().loadPlaces();
+      await reloadPlaces();
+      const history = readHistory(text, { workers, places: fresh });
+      const existing = await store().existingDates(history.days.map((d) => d.date));
       setResolutions(new Map());
-      setPhase({ step: 'review', messages: messages.length, found, existing });
+      setPhase({
+        step: 'review',
+        messages: history.messageCount,
+        days: history.days,
+        existing,
+        addons: history.days.reduce((s, d) => s + d.messages.length - 1, 0),
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+      setPhase({ step: 'pick' });
     }
   }
 
   async function save() {
     if (phase.step !== 'review') return;
-    const toSave = phase.found.filter((f) => overwrite || !phase.existing.has(f.date));
+    const review = phase;
+    const toSave = review.days.filter((d) => overwrite || !review.existing.has(d.date));
     setError(null);
     setPhase({ step: 'saving', done: 0, total: toSave.length });
     try {
-      const ids = await applyResolutions(unknowns, resolutions, places);
+      const ids = await applyResolutions(unknowns, resolutions, await store().loadPlaces());
       let done = 0;
-      for (const f of toSave) {
+      for (const d of toSave) {
         await store().saveDay(
           buildSaveInput(
-            f.day,
-            { date: f.date, rawText: f.message.text, source: 'whatsapp_export', messageSentAt: f.message.sentAt.toISOString() },
+            d.day,
+            {
+              date: d.date,
+              rawText: historyRawText(d),
+              source: 'whatsapp_export',
+              messageSentAt: d.messages[0].sentAt.toISOString(),
+            },
             ids,
           ),
         );
@@ -81,10 +84,10 @@ export function ImportChat() {
         setPhase({ step: 'saving', done, total: toSave.length });
       }
       await reloadPlaces();
-      setPhase({ step: 'done', saved: done, skipped: phase.found.length - toSave.length });
+      setPhase({ step: 'done', saved: done, skipped: review.days.length - toSave.length });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-      setPhase(phase);
+      setPhase(review);
       await reloadPlaces().catch(() => undefined);
     }
   }
@@ -107,6 +110,7 @@ export function ImportChat() {
             }}
           />
         )}
+        {phase.step === 'reading' && <p className="muted">קורא את השיחה…</p>}
         {error && <p className="error">{error}</p>}
       </section>
 
@@ -115,10 +119,10 @@ export function ImportChat() {
           <section className="card stack-sm">
             <h2 className="h2">מה נמצא</h2>
             <p>
-              {phase.messages} הודעות בשיחה, מתוכן <strong>{phase.found.length} סידורי עבודה</strong>
-              {phase.found.length > 0 &&
-                ` (${formatDayShort(phase.found[0].date)} עד ${formatDayShort(phase.found[phase.found.length - 1].date)})`}
-              .
+              {phase.messages.toLocaleString('he-IL')} הודעות בשיחה, מתוכן <strong>{phase.days.length} ימי עבודה</strong>
+              {phase.days.length > 0 &&
+                ` (${formatDayShort(phase.days[0].date)} עד ${formatDayShort(phase.days[phase.days.length - 1].date)})`}
+              .{phase.addons > 0 && ` ${phase.addons} תוספות לסידור צורפו ליום שלהן.`}
             </p>
             {phase.existing.size > 0 && (
               <label className="check">
@@ -131,9 +135,12 @@ export function ImportChat() {
           {unknowns.length > 0 && (
             <section className="card stack">
               <div>
-                <h2 className="h2">מקומות שלא זוהו ({unknowns.length})</h2>
+                <h2 className="h2">
+                  מקומות שלא זוהו ({pending} מתוך {unknowns.length} עוד פתוחים)
+                </h2>
                 <p className="muted small">
-                  כל מה שמשייכים כאן נלמד גם לפעמים הבאות. אפשר לדלג, ולהשלים אחר כך במסך המקומות.
+                  כל מה שמשייכים כאן נלמד גם לפעמים הבאות. שם של אדם או הערה: "לא מקום". אפשר גם להשאיר פתוח ולהשלים
+                  אחר כך במסך המקומות.
                 </p>
               </div>
               <ul className="tasks">
@@ -142,6 +149,7 @@ export function ImportChat() {
                     <PlaceResolver
                       group={g}
                       value={resolutions.get(g.key)}
+                      allowSkip
                       onChange={(r) =>
                         setResolutions((prev) => {
                           const next = new Map(prev);
@@ -158,8 +166,8 @@ export function ImportChat() {
           )}
 
           <section className="card stack-sm">
-            <button className="btn btn-primary btn-block" disabled={phase.found.length === 0} onClick={() => void save()}>
-              שמירת {phase.found.filter((f) => overwrite || !phase.existing.has(f.date)).length} ימים
+            <button className="btn btn-primary btn-block" disabled={phase.days.length === 0} onClick={() => void save()}>
+              שמירת {phase.days.filter((d) => overwrite || !phase.existing.has(d.date)).length} ימים
             </button>
           </section>
         </>

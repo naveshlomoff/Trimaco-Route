@@ -4,11 +4,12 @@
 import type { NewTask, SaveDayInput } from './store';
 import { store } from './store';
 import { normalizeKey } from './text';
-import type { ParsedDay, Place, PlaceCandidate, PlaceKind, Region } from './types';
+import type { DayRow, ParsedDay, Place, PlaceCandidate, PlaceKind, Region, TaskRow } from './types';
 
 export type Resolution =
   | { type: 'existing'; placeId: string }
-  | { type: 'new'; name: string; region: Region; placeKind: PlaceKind };
+  | { type: 'new'; name: string; region: Region; placeKind: PlaceKind }
+  | { type: 'skip' }; // not a place (a person, a note): leave the lines without one
 
 /** One unrecognised place, however many times and spellings it appeared. */
 export interface UnknownGroup {
@@ -48,7 +49,7 @@ export async function applyResolutions(
   const placeIdByKey = new Map<string, string>();
   for (const g of groups) {
     const r = resolutions.get(g.key);
-    if (!r) continue;
+    if (!r || r.type === 'skip') continue;
     let placeId: string;
     if (r.type === 'existing') {
       placeId = r.placeId;
@@ -96,6 +97,34 @@ export function buildSaveInput(
     source: meta.source,
     messageSentAt: meta.messageSentAt,
     tasks,
+  };
+}
+
+/**
+ * An add-on ("מוסיפה לסידור של היום") keeps what was already saved for the
+ * day and appends its tasks, instead of replacing the whole schedule.
+ */
+export function appendToSaved(saved: { day: DayRow; tasks: TaskRow[] }, addon: SaveDayInput): SaveDayInput {
+  const lastSeq = new Map<string, number>();
+  const kept: NewTask[] = saved.tasks.map(({ id: _id, date: _date, ...t }) => {
+    const k = t.worker_id ?? t.worker_label;
+    lastSeq.set(k, Math.max(lastSeq.get(k) ?? 0, t.seq));
+    return t;
+  });
+  const added = addon.tasks.map((t) => {
+    const k = t.worker_id ?? t.worker_label;
+    const seq = (lastSeq.get(k) ?? 0) + 1;
+    lastSeq.set(k, seq);
+    return { ...t, seq };
+  });
+  return {
+    ...addon,
+    rawText: `${saved.day.raw_text}\n\n— תוספת —\n${addon.rawText}`,
+    intro: saved.day.intro,
+    vehicleNotes: [...saved.day.vehicle_notes, ...addon.vehicleNotes],
+    notes: [...saved.day.notes, ...addon.notes],
+    source: saved.day.source,
+    tasks: [...kept, ...added],
   };
 }
 

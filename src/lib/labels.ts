@@ -35,6 +35,7 @@ export const TYPE_LABELS: Record<TaskType, string> = {
   orders: 'הזמנות',
   sets_prep: 'הכנת רשתות',
   warehouse: 'מחסן',
+  off: 'לא עובד היום',
 };
 
 export const FLAG_LABELS: Record<string, string> = {

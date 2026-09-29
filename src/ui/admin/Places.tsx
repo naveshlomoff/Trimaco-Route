@@ -57,7 +57,7 @@ export function Places() {
   }
 
   function resolve(g: Unresolved, r: Resolution | undefined) {
-    if (!r) return;
+    if (!r || r.type === 'skip') return;
     void run(async () => {
       const placeId =
         r.type === 'existing'

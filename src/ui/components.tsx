@@ -25,6 +25,17 @@ export function TaskLine(props: {
   const window =
     windowStart || windowEnd ? `${windowStart?.slice(0, 5) ?? ''}${windowStart && windowEnd ? '–' : ''}${windowEnd?.slice(0, 5) ?? ''}` : null;
 
+  if (types.includes('off')) {
+    return (
+      <li className="task task-inhouse">
+        <div className="task-head">
+          <span className="chip chip-muted">לא עובד היום</span>
+          {description && <span className="task-desc">{description}</span>}
+        </div>
+      </li>
+    );
+  }
+
   // Warehouse work is one quiet line: "במחסן · הכנת הזמנות"
   if (state === 'inhouse') {
     return (
@@ -77,10 +88,13 @@ export function PlaceResolver({
   group,
   value,
   onChange,
+  allowSkip = false,
 }: {
   group: UnknownGroup;
   value: Resolution | undefined;
   onChange: (r: Resolution | undefined) => void;
+  /** Offer "לא מקום" for a person's name or a note. */
+  allowSkip?: boolean;
 }) {
   const { places } = useApp();
   const [mode, setMode] = useState<'idle' | 'search' | 'new'>('idle');
@@ -89,7 +103,9 @@ export function PlaceResolver({
     const label =
       value.type === 'existing'
         ? places.find((p) => p.id === value.placeId)?.name ?? 'מקום קיים'
-        : `${value.name} (חדש · ${REGION_LABELS[value.region]})`;
+        : value.type === 'new'
+          ? `${value.name} (חדש · ${REGION_LABELS[value.region]})`
+          : `"${group.texts[0]}" אינו מקום`;
     return (
       <div className="resolver resolver-done">
         <span>✓ {label}</span>
@@ -117,6 +133,11 @@ export function PlaceResolver({
         <button className="btn btn-small btn-ghost" onClick={() => setMode(mode === 'new' ? 'idle' : 'new')}>
           מקום חדש
         </button>
+        {allowSkip && (
+          <button className="btn btn-small btn-ghost" onClick={() => onChange({ type: 'skip' })}>
+            לא מקום
+          </button>
+        )}
       </div>
       {mode === 'search' && (
         <PlaceSearch

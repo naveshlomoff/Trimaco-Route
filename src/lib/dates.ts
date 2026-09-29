@@ -23,6 +23,7 @@ export function detectDateHint(introLines: string[]): DateHint {
   if (letter) return { kind: 'weekday', weekday: LETTER_DAYS[letter[1]] };
 
   if (/מחר/.test(text)) return { kind: 'tomorrow' };
+  if (/היום/.test(text)) return { kind: 'today' };
   return { kind: 'none' };
 }
 
@@ -48,6 +49,8 @@ function addDays(d: Date, n: number): Date {
 /** The work day a schedule refers to, given when it was written. */
 export function resolveDate(hint: DateHint, sentAt: Date): string {
   switch (hint.kind) {
+    case 'today':
+      return toISODate(sentAt);
     case 'tomorrow':
       return toISODate(addDays(sentAt, 1));
     case 'weekday': {

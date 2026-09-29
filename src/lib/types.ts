@@ -39,7 +39,8 @@ export type TaskType =
   | 'check'
   | 'orders'
   | 'sets_prep'
-  | 'warehouse';
+  | 'warehouse'
+  | 'off'; // day off, sick, reserve duty
 
 /** How the location of a line was recognised. */
 export type PlaceMatch =
@@ -87,6 +88,7 @@ export interface VehicleNote {
 }
 
 export type DateHint =
+  | { kind: 'today' }
   | { kind: 'tomorrow' }
   | { kind: 'weekday'; weekday: number }
   | { kind: 'explicit'; day: number; month: number; year: number | null }
@@ -98,6 +100,8 @@ export interface ParsedDay {
   sections: ParsedSection[];
   vehicle: VehicleNote[];
   notes: string[];
+  /** 'addendum': a few lines added to a day already sent ("מוסיפה לסידור של היום"). */
+  kind: 'full' | 'addendum';
 }
 
 /** Rows as stored in Supabase. */

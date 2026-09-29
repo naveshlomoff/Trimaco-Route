@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { navigate, useApp } from '../appContext';
 import { formatDayLong, resolveDate } from '../lib/dates';
-import { applyResolutions, buildSaveInput, collectUnknowns, readDraft, writeDraft, type Resolution } from '../lib/draft';
+import {
+  appendToSaved,
+  applyResolutions,
+  buildSaveInput,
+  collectUnknowns,
+  readDraft,
+  writeDraft,
+  type Resolution,
+} from '../lib/draft';
 import { parseSchedule } from '../lib/parser';
 import { store } from '../lib/store';
 import { normalizeKey } from '../lib/text';
@@ -17,7 +25,13 @@ export function Review() {
     () => (draft ? parseSchedule(draft.text, { workers, places }) : null),
     [draft, workers, places],
   );
-  const [date, setDate] = useState(() => draft?.date ?? (parsed ? resolveDate(parsed.dateHint, new Date()) : ''));
+  // an add-on with no day word ("מוסיפה לסידור:") is for today's schedule
+  const [date, setDate] = useState(() => {
+    if (draft?.date) return draft.date;
+    if (!parsed) return '';
+    const hint = parsed.kind === 'addendum' && parsed.dateHint.kind === 'none' ? { kind: 'today' as const } : parsed.dateHint;
+    return resolveDate(hint, new Date());
+  });
   const [resolutions, setResolutions] = useState<Map<string, Resolution>>(new Map());
   const [exists, setExists] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -70,6 +84,7 @@ export function Review() {
         return { state: 'known', name: p?.name ?? null, region: regionOf(p?.region) };
       }
       if (r?.type === 'new') return { state: 'known', name: r.name, region: r.region };
+      if (r?.type === 'skip') return { state: 'none', name: null, region: null };
       return { state: 'unknown', name: null, region: null };
     }
     return { state: 'none', name: null, region: null };
@@ -86,7 +101,10 @@ export function Review() {
     setError(null);
     try {
       const ids = await applyResolutions(unknowns, resolutions, places);
-      await store().saveDay(buildSaveInput(parsed, { date, rawText: draft.text, source: 'paste', messageSentAt: null }, ids));
+      const input = buildSaveInput(parsed, { date, rawText: draft.text, source: 'paste', messageSentAt: null }, ids);
+      // an add-on joins the schedule already saved for the day instead of replacing it
+      const saved = parsed.kind === 'addendum' ? await store().getDay(date) : null;
+      await store().saveDay(saved ? appendToSaved(saved, input) : input);
       await reloadPlaces();
       writeDraft(null);
       try {
@@ -116,7 +134,15 @@ export function Review() {
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} dir="ltr" />
         </label>
         <p className="muted small">{date && formatDayLong(date)}</p>
-        {exists && <p className="notice">כבר נשמר סידור ליום הזה. שמירה תעדכן אותו (הגרסה הקודמת נשמרת בהיסטוריה).</p>}
+        {parsed.kind === 'addendum' ? (
+          <p className="notice">
+            {exists
+              ? 'זו תוספת לסידור. המשימות יתווספו לסידור שכבר שמור ליום הזה.'
+              : 'זו תוספת לסידור, אבל אין סידור שמור ליום הזה. היא תישמר כסידור של היום.'}
+          </p>
+        ) : (
+          exists && <p className="notice">כבר נשמר סידור ליום הזה. שמירה תעדכן אותו (הגרסה הקודמת נשמרת בהיסטוריה).</p>
+        )}
         <div className="row wrap">
           <span className="chip chip-muted">{parsed.sections.length} עובדים</span>
           <span className="chip chip-muted">{fieldStops} עצירות בשטח</span>
@@ -165,6 +191,7 @@ export function Review() {
                     <PlaceResolver
                       group={group}
                       value={resolutions.get(group.key)}
+                      allowSkip
                       onChange={(r) => setResolution(group.key, r)}
                     />
                   )}

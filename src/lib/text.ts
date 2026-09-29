@@ -1,10 +1,11 @@
 // Text helpers for Hebrew WhatsApp messages.
 
-// Direction marks WhatsApp and phones insert invisibly around Hebrew/English runs.
-const DIRECTION_MARKS = /[‎‏‪-‮⁦-⁩﻿]/g;
+// Invisible characters phones and WhatsApp insert: direction marks, word
+// joiners, zero-width spaces, soft hyphens, byte-order marks.
+const INVISIBLE = /[­؜​-‏‪-‮⁠-⁤⁦-⁩﻿]/g;
 
 export function stripMarks(s: string): string {
-  return s.replace(DIRECTION_MARKS, '');
+  return s.replace(INVISIBLE, '');
 }
 
 /** Removes WhatsApp formatting markers: *bold*, _italic_, ~strike~. */
@@ -47,6 +48,10 @@ export function similarity(a: string, b: string): number {
   return 1 - prev[lb] / Math.max(la, lb);
 }
 
+function isDash(ch: string | undefined): boolean {
+  return ch === '-' || ch === '–' || ch === '—';
+}
+
 /**
  * Index of the first dash that separates "place - what to do".
  * A dash counts only when it touches a space on at least one side, so
@@ -54,9 +59,15 @@ export function similarity(a: string, b: string): number {
  */
 export function findSeparator(s: string): number {
   for (let i = 0; i < s.length; i++) {
-    const ch = s[i];
-    if (ch !== '-' && ch !== '–' && ch !== '—') continue;
-    if (s[i - 1] === ' ' || s[i + 1] === ' ') return i;
+    if (isDash(s[i]) && (s[i - 1] === ' ' || s[i + 1] === ' ')) return i;
+  }
+  return -1;
+}
+
+/** Index of the first dash with letters on both sides ("שוהם-אספקה"), or -1. */
+export function findTightDash(s: string): number {
+  for (let i = 1; i < s.length - 1; i++) {
+    if (isDash(s[i]) && s[i - 1] !== ' ' && s[i + 1] !== ' ' && !/\d/.test(s[i - 1] + s[i + 1])) return i;
   }
   return -1;
 }

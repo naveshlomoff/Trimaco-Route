@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import seed from '../../supabase/seed-places.json';
 import { detectDateHint, resolveDate } from './dates';
+import { readHistory } from './history';
 import { looksLikeSchedule, parseSchedule, unresolvedTasks } from './parser';
 import type { Place, Worker } from './types';
 
@@ -149,5 +150,78 @@ describe('looksLikeSchedule', () => {
   it('accepts a schedule and rejects ordinary chat', () => {
     expect(looksLikeSchedule(MESSAGE, workers)).toBe(true);
     expect(looksLikeSchedule('דני תביא בבקשה את הרשת לאיכילוב', workers)).toBe(false);
+  });
+});
+
+describe('older message formats', () => {
+  it('reads numbered lines, dashes without spaces, sub-headings, add-on lines and days off', () => {
+    const msg = [
+      'שלום לכולם,',
+      'סידור לצוות לוגיסטיקה למחר:',
+      '',
+      '*דני*',
+      '1.\t⁠שוהם-אספקת משלוח ללקוח',
+      '2.\tרפאל לסגור רשתות',
+      '+ להחזיר ארגז השלמות',
+      '3.\tמשרד להכין הזמנות',
+      '4.\tבדיקות רשתות שחזרו מניתוחים',
+      '',
+      '*רוני*',
+      'אספקת הזמנות PRO:',
+      '1.\tאבן יהודה – כללית',
+      '2.קרבופיקס-לאסוף רשת לניתוח',
+      '3.\tבוטיק לספק ציוד',
+      '',
+      '*מאיה*',
+      'חופש',
+    ].join('\n');
+    const day = parseSchedule(msg, ctx);
+    const [dani, roni, maya] = day.sections.map((s) => s.tasks);
+
+    expect(dani.map((t) => t.match)).toEqual(['exact', 'prefix', 'inhouse', 'inhouse']);
+    expect(dani[0].placeId).toBe('שוהם');
+    expect(dani[1].placeId).toBe('רפאל');
+    expect(dani[1].description).toContain('להחזיר ארגז השלמות');
+    expect(dani[1].types).toContain('completions');
+
+    expect(roni[0]).toMatchObject({ placeId: 'אבן יהודה', types: ['delivery'] });
+    expect(roni[1]).toMatchObject({ locationText: 'קרבופיקס', match: 'unknown' });
+    expect(roni[2]).toMatchObject({ locationText: 'בוטיק', match: 'unknown' });
+
+    expect(maya).toHaveLength(1);
+    expect(maya[0]).toMatchObject({ isField: false, types: ['off'] });
+  });
+
+  it('reads a whole worker on one numbered line, one task per place', () => {
+    const msg = 'סידור לצוות לוגיסטיקה למחר:\n1.\t*דני* – איכילוב לספק ארגז, באר שבע לספק הזמנה של PRO\n2.\t*רוני* – מחסן';
+    const day = parseSchedule(msg, ctx);
+    expect(day.sections.map((s) => s.workerId)).toEqual(['dani', 'roni']);
+    expect(day.sections[0].tasks.map((t) => t.placeId)).toEqual(['איכילוב', 'באר שבע']);
+    expect(day.sections[1].tasks[0].match).toBe('inhouse');
+  });
+});
+
+describe('readHistory', () => {
+  const schedule = (place: string) =>
+    `שלום לכולם,\nסידור צוות לוגיסטיקה למחר:\n*דני*\n• ${place} - לספק רשתות\n*רוני*\n• מחסן`;
+  const addon = 'היי\nמוסיפה לסידור של היום:\n*רוני*\nאסותא אשדוד - אספקת 7 רשתות';
+  const exportText = [
+    `[27.9.2026, 16:00:00] עדי: ${schedule('איכילוב')}`,
+    `[28.9.2026, 9:30:00] עדי: ${addon}`,
+    '[28.9.2026, 9:31:00] רוני: 👍',
+    `[28.9.2026, 16:10:00] עדי: ${schedule('איכילוב')}`,
+    `[28.9.2026, 16:40:00] עדי: ${schedule('שיבא')}`,
+  ].join('\n');
+
+  it('keeps one schedule per day, the latest version, with add-ons merged in', () => {
+    const h = readHistory(exportText, ctx);
+    expect(h.days.map((d) => d.date)).toEqual(['2026-09-28', '2026-09-29']);
+    expect(h.replaced).toBe(1);
+
+    const [d28, d29] = h.days;
+    expect(d28.messages).toHaveLength(2);
+    const roni28 = d28.day.sections.find((s) => s.workerId === 'roni')!.tasks;
+    expect(roni28.map((t) => t.placeId)).toEqual(['מחסן נס ציונה', 'אסותא אשדוד']);
+    expect(d29.day.sections[0].tasks[0].placeId).toBe('שיבא');
   });
 });

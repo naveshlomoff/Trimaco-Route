@@ -90,7 +90,7 @@ export function computeDashboard(tasks: TaskRow[], workers: Worker[], places: Pl
       name: w.name,
       fieldDays: new Set(mineField.map((t) => t.date)).size,
       fieldStops: mineField.length,
-      warehouseDays: new Set(mine.filter((t) => !t.is_field).map((t) => t.date)).size,
+      warehouseDays: new Set(mine.filter((t) => !t.is_field && !t.task_types.includes('off')).map((t) => t.date)).size,
       topRegions: [...regionCounts]
         .filter(([r]) => r !== 'unknown')
         .sort((a, b) => b[1] - a[1])
