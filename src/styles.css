@@ -151,6 +151,23 @@ p {
   padding-top: env(safe-area-inset-top);
 }
 
+.update-bar {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 10px 16px calc(10px + env(safe-area-inset-top));
+  background: var(--brand);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-footer {
+  text-align: center;
+  padding: 0 16px 24px;
+}
+
 .app-header-inner {
   max-width: 780px;
   margin: 0 auto;

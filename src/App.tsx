@@ -11,6 +11,7 @@ import { DayView } from './ui/DayView';
 import { Home } from './ui/Home';
 import { Login } from './ui/Login';
 import { Review } from './ui/Review';
+import { BUILD_ID, useUpdateAvailable } from './version';
 
 function currentPath(): string {
   return window.location.hash.replace(/^#/, '') || '/';
@@ -103,9 +104,15 @@ function Shell({ path }: { path: string }) {
       : []),
   ];
   const active = tabs.reduce((best, t) => (path.startsWith(t.path) && t.path.length > best.length ? t.path : best), '/');
+  const updateAvailable = useUpdateAvailable();
 
   return (
     <>
+      {updateAvailable && (
+        <button className="update-bar" onClick={() => window.location.reload()}>
+          יש גרסה חדשה של האפליקציה. לחיצה כאן לרענון.
+        </button>
+      )}
       <header className="app-header">
         <div className="app-header-inner">
           <a className="brand" href="#/">
@@ -113,7 +120,7 @@ function Shell({ path }: { path: string }) {
             <span>Trimaco Route</span>
             {demo && <span className="chip chip-warn">דמו</span>}
           </a>
-          {/* No sign-out: without passwords, signing out would need a new approval. */}
+          {/* No sign-out: without passwords, coming back would register a new device. */}
           <div className="header-user">
             <span className="muted">{profile.display_name}</span>
           </div>
@@ -129,6 +136,9 @@ function Shell({ path }: { path: string }) {
         )}
       </header>
       <main className="container">{route(path, isAdmin)}</main>
+      <footer className="app-footer muted small" dir="ltr">
+        Trimaco Route · {BUILD_ID}
+      </footer>
     </>
   );
 }
