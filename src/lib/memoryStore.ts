@@ -134,6 +134,12 @@ export function createMemoryStore(seed: MemorySeed): Store {
         .slice(0, limit)
         .map(({ date, saved_at, source, version }) => ({ date, saved_at, source, version }));
     },
+    async daysBetween(from, to) {
+      return [...days.values()]
+        .filter((d) => d.date >= from && d.date <= to)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map(({ date, saved_at, source, version, saved_by }) => ({ date, saved_at, source, version, saved_by }));
+    },
     async getDay(date) {
       const day = days.get(date);
       if (!day) return null;

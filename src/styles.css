@@ -785,3 +785,14 @@ progress {
   width: 100%;
   height: 10px;
 }
+
+.week-text {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--brand-soft);
+  font: inherit;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  direction: rtl;
+}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { DayAdvice, Move } from '../lib/advisor';
 import { MoveText } from './Advice';
+import { copyText } from './clipboard';
 
 /** A suggestion Adi accepted: the message before it, so the last one can be undone. */
 export interface Applied {
@@ -8,26 +9,6 @@ export interface Applied {
   before: string;
   /** The giver had nothing else and now has "מחסן". */
   freed: boolean;
-}
-
-/** Older browsers, and in-app browsers that block the clipboard API. */
-function legacyCopy(text: string): boolean {
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.setAttribute('readonly', '');
-  ta.style.position = 'fixed';
-  ta.style.opacity = '0';
-  document.body.appendChild(ta);
-  ta.select();
-  ta.setSelectionRange(0, text.length);
-  let ok = false;
-  try {
-    ok = document.execCommand('copy');
-  } catch {
-    ok = false;
-  }
-  document.body.removeChild(ta);
-  return ok;
 }
 
 export const moveKey =(m: { placeId: string; from: string; to: string }) => `${m.placeId}|${m.from}|${m.to}`;
@@ -62,13 +43,7 @@ export function Suggestions({ advice, applied, canApply, onAccept, onDecline, on
   }
 
   async function copy() {
-    let ok = false;
-    try {
-      await navigator.clipboard.writeText(text);
-      ok = true;
-    } catch {
-      ok = legacyCopy(text);
-    }
+    const ok = await copyText(text);
     setCopied(ok);
     setCopyFailed(!ok);
   }

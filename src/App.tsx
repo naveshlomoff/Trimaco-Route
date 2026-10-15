@@ -7,6 +7,7 @@ import { Dashboard } from './ui/admin/Dashboard';
 import { ImportChat } from './ui/admin/ImportChat';
 import { Places } from './ui/admin/Places';
 import { Users } from './ui/admin/Users';
+import { Week } from './ui/admin/Week';
 import { DayView } from './ui/DayView';
 import { Home } from './ui/Home';
 import { Login } from './ui/Login';
@@ -151,6 +152,8 @@ function route(path: string, isAdmin: boolean) {
   if (isAdmin && path === '/admin/places') return <Places />;
   if (isAdmin && path === '/admin/import') return <ImportChat />;
   if (isAdmin && path === '/admin/users') return <Users />;
+  const week = path.match(/^\/admin\/week(?:\/(\d{4}-\d{2}-\d{2}))?$/);
+  if (isAdmin && week) return <Week key={week[1] ?? 'now'} date={week[1]} />;
   return <Home />;
 }
 

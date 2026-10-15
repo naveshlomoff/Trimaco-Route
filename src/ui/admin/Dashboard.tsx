@@ -89,6 +89,9 @@ export function Dashboard() {
       <section className="stack-sm">
         <div className="row between wrap">
           <h1 className="h1">לוח מנהל</h1>
+          <a className="btn btn-primary btn-small" href="#/admin/week">
+            סיכום שבועי
+          </a>
           <div className="segmented">
             {RANGES.map((r) => (
               <button key={r.days} className={r.days === range ? 'seg seg-active' : 'seg'} onClick={() => setRange(r.days)}>

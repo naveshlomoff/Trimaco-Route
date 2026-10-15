@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '../config';
-import type { Store } from './store';
+import type { DaySummary, Store } from './store';
 import type { AdviceDecision, DayRow, Place, Profile, TaskRow, Worker } from './types';
 
 interface Result<T> {
@@ -128,6 +128,17 @@ export function createSupabaseStore(): Store {
       return check(
         await sb.from('days').select('date, saved_at, source, version').order('date', { ascending: false }).limit(limit),
       ) as { date: string; saved_at: string; source: DayRow['source']; version: number }[];
+    },
+
+    async daysBetween(from, to) {
+      return check(
+        await sb
+          .from('days')
+          .select('date, saved_at, source, version, saved_by')
+          .gte('date', from)
+          .lte('date', to)
+          .order('date'),
+      ) as DaySummary[];
     },
 
     async getDay(date) {

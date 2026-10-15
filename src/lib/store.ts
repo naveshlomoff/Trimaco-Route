@@ -33,6 +33,7 @@ export interface DaySummary {
   saved_at: string;
   source: DayRow['source'];
   version: number;
+  saved_by?: string | null;
 }
 
 export interface Store {
@@ -56,6 +57,8 @@ export interface Store {
   saveDay(input: SaveDayInput): Promise<void>;
   deleteDay(date: string): Promise<void>;
   listDays(limit: number): Promise<DaySummary[]>;
+  /** Days saved for dates from `from` to `to`, with who saved them. */
+  daysBetween(from: string, to: string): Promise<DaySummary[]>;
   getDay(date: string): Promise<{ day: DayRow; tasks: TaskRow[] } | null>;
   existingDates(dates: string[]): Promise<Set<string>>;
   tasksBetween(from: string, to: string): Promise<TaskRow[]>;
