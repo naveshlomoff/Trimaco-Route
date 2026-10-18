@@ -40,6 +40,8 @@ export function InvoiceCheck() {
   const [letter, setLetter] = useState('');
   const [copied, setCopied] = useState<boolean | null>(null);
   const [manual, setManual] = useState(false);
+  /** The PDF has no text at all: a scan of paper. */
+  const [scanned, setScanned] = useState(false);
 
   useEffect(() => {
     store()
@@ -70,9 +72,12 @@ export function InvoiceCheck() {
     setError(null);
     setSaved(false);
     setManual(false);
+    setScanned(false);
     setReading(true);
     try {
-      const invoices = parseInvoices(await readPdf(file));
+      const pages = await readPdf(file);
+      setScanned(pages.every((p) => p.length === 0));
+      const invoices = parseInvoices(pages);
       setFound(invoices);
       setDraft(invoices.length === 1 ? withKnownCountry(invoices[0]) : null);
     } catch (e) {
@@ -144,7 +149,13 @@ export function InvoiceCheck() {
         {reading && <p className="muted">קורא את החשבונית…</p>}
         {error && <p className="error">{error}</p>}
         {history === null && !error && <p className="muted small">טוען את החשבוניות הקודמות…</p>}
-        {found && found.length === 0 && (
+        {found && found.length === 0 && scanned && (
+          <p className="notice">
+            הקובץ הוא סריקה (תמונה של נייר), ואין בו טקסט שאפשר לקרוא. עדיף להעלות את ה-PDF המקורי שהמוביל שלח במייל.
+            אם אין, אפשר ללחוץ "הזנה ידנית".
+          </p>
+        )}
+        {found && found.length === 0 && !scanned && (
           <p className="notice">
             לא מצאתי בקובץ חשבונית של KRIEF או של מעיין. אולי זה מוביל אחר או מסמך סרוק. אפשר ללחוץ "הזנה ידנית".
           </p>
