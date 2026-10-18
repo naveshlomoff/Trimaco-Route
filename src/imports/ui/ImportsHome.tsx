@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { store } from '../../lib/store';
 import {
   CONFIDENCE_LABELS,
@@ -9,6 +9,7 @@ import {
   suppliersOf,
   type Basis,
   type Estimate,
+  type ImportRequest,
   type Recommendation,
 } from '../model';
 import { shekels, useShipments } from './useShipments';
@@ -40,7 +41,14 @@ export function ImportsHome() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [other, setOther] = useState('');
 
-  const suppliers = useMemo(() => (shipments ? suppliersOf(shipments) : []), [shipments]);
+  const [entered, setEntered] = useState<ImportRequest[]>([]);
+  useEffect(() => {
+    store()
+      .listImportRequests(1000)
+      .then(setEntered)
+      .catch(() => undefined);
+  }, []);
+  const suppliers = useMemo(() => (shipments ? suppliersOf(shipments, entered) : []), [shipments, entered]);
   const countries = useMemo(() => (shipments ? countriesOf(shipments) : []), [shipments]);
   const weightKg = num(weight);
 
@@ -78,6 +86,8 @@ export function ImportsHome() {
       });
       setSaved(carrier);
       setOther('');
+      // a new supplier joins the list right away
+      setEntered((e) => [{ supplier: supplier.trim() || null, country } as ImportRequest, ...e]);
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : String(e));
     }

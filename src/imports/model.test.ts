@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bandOf, chargeableKg, recommend, type Shipment } from './model';
+import { bandOf, chargeableKg, recommend, suppliersOf, type Shipment } from './model';
 
 // Made-up shipments; the real ones stay out of the public repo.
 const ship = (carrier: string, country: string, kg: number, freight: number, handling: number, extra: Partial<Shipment> = {}): Shipment => ({
@@ -77,5 +77,13 @@ describe('recommend', () => {
     // release and delivery from every country in the band: A 450–500, B 400–600
     expect(r.best).toMatchObject({ carrier: 'A', cost: 500, basis: 'band' });
     expect(r.alternative).toMatchObject({ carrier: 'B', cost: 510 });
+  });
+});
+
+describe('suppliersOf', () => {
+  it('remembers a supplier Adi entered, with its country', () => {
+    const list = suppliersOf(history, [{ supplier: 'NEW MED', country: 'פולין' }, { supplier: null, country: 'סין' }]);
+    expect(list.find((s) => s.name === 'NEW MED')).toMatchObject({ country: 'פולין', count: 1 });
+    expect(list.find((s) => s.name === 'ACME')).toMatchObject({ country: 'איטליה' });
   });
 });

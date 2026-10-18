@@ -317,10 +317,21 @@ export interface ImportRequest {
   notes: string | null;
 }
 
-/** The suppliers seen so far, with the country they usually ship from. */
-export function suppliersOf(history: Shipment[]): { name: string; country: string; count: number }[] {
+/**
+ * The suppliers seen so far, with the country they usually ship from: the
+ * history, plus every supplier Adi entered since (`more`), so a new one is
+ * remembered from its first shipment.
+ */
+export function suppliersOf(
+  history: Shipment[],
+  more: { supplier: string | null; country: string | null }[] = [],
+): { name: string; country: string; count: number }[] {
   const by = new Map<string, { name: string; countries: Map<string, number>; count: number }>();
-  for (const s of history) {
+  const all = [
+    ...history,
+    ...more.flatMap((m) => (m.supplier && m.country ? [{ supplier: m.supplier, country: m.country }] : [])),
+  ];
+  for (const s of all) {
     const key = s.supplier.trim().toUpperCase();
     if (!key) continue;
     const e = by.get(key) ?? { name: s.supplier.trim(), countries: new Map(), count: 0 };
