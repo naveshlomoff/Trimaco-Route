@@ -6,6 +6,7 @@
 import seedPlaces from '../../supabase/seed-places.json';
 import { createMemoryStore } from '../lib/memoryStore';
 import type { Store } from '../lib/store';
+import type { ParsedInvoice } from '../imports/invoice/parse';
 import type { Shipment } from '../imports/model';
 import type { Place, Worker } from '../lib/types';
 
@@ -15,7 +16,10 @@ interface LocalTeam {
 }
 
 const local = Object.values(import.meta.glob<LocalTeam>('./team.local.ts', { eager: true }))[0];
-// The real 2026 shipments, when a local copy exists (git-ignored); otherwise a few made-up ones.
+// The real 2026 invoices and shipments, when a local copy exists (git-ignored); otherwise a few made-up shipments.
+const localInvoices = Object.values(
+  import.meta.glob<{ default: ParsedInvoice[] }>('./invoices.local.json', { eager: true }),
+)[0]?.default;
 const localImports = Object.values(
   import.meta.glob<{ default: Shipment[] }>('./imports.local.json', { eager: true }),
 )[0]?.default;
@@ -106,6 +110,7 @@ export function createDemoStore(): Store {
       notes: null,
     })),
     imports: localImports ?? fallbackImports,
+    invoices: (localInvoices ?? []).map((i) => ({ ...i, source: 'history' as const, findings: [], overcharge: 0, status: 'ok' as const })),
   });
 }
 

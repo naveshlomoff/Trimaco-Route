@@ -467,3 +467,44 @@ create policy "imports requests read" on public.import_requests for select to au
 drop policy if exists "imports requests insert" on public.import_requests;
 create policy "imports requests insert" on public.import_requests for insert to authenticated
   with check (public.can_imports() and created_by = auth.uid());
+
+-- ============ Trimaco Imports: carrier invoices and their check ============
+-- The 2026 invoices (read from the carriers' PDFs) are the yardstick; every
+-- invoice Adi checks is kept with what was found.
+create table if not exists public.import_invoices (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  created_by uuid default auth.uid() references auth.users (id) on delete set null,
+  source text not null default 'upload' check (source in ('history', 'upload')),
+  carrier text not null,
+  invoice_no text not null,
+  invoice_date date,
+  declaration_no text,
+  supplier text,
+  country text,
+  mode text not null default 'air' check (mode in ('air', 'sea')),
+  incoterms text,
+  weight_kg double precision,
+  chargeable_kg double precision,
+  cbm double precision,
+  goods_value double precision,
+  lines jsonb not null default '[]',            -- [{item, label, amount, code?}]
+  subtotal double precision,
+  total double precision,
+  findings jsonb not null default '[]',         -- [{status, text, diff}]
+  overcharge double precision not null default 0,
+  status text not null default 'ok' check (status in ('ok', 'flagged')),
+  unique (carrier, invoice_no)
+);
+
+grant select, insert, update on public.import_invoices to authenticated;
+revoke all on public.import_invoices from anon;
+alter table public.import_invoices enable row level security;
+drop policy if exists "imports invoices read" on public.import_invoices;
+create policy "imports invoices read" on public.import_invoices for select to authenticated using (public.can_imports());
+drop policy if exists "imports invoices insert" on public.import_invoices;
+create policy "imports invoices insert" on public.import_invoices for insert to authenticated
+  with check (public.can_imports() and source = 'upload');
+drop policy if exists "imports invoices update" on public.import_invoices;
+create policy "imports invoices update" on public.import_invoices for update to authenticated
+  using (public.can_imports() and source = 'upload') with check (public.can_imports() and source = 'upload');

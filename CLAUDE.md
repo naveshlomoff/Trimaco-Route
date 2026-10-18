@@ -31,8 +31,16 @@ to Route, whose home is `#/route`.
   50 kg, per kg above), else the region, never another part of the world. Shows the evidence.
 - Tables `import_shipments` (2026 history, loaded from `imports-setup.sql` in Nave's OneDrive
   folder, never in this repo) and `import_requests` (the carrier Adi chose, for the trial).
-- Not built yet: the invoice check after shipping (reading carrier PDFs), consolidation, the
-  later stages of Liraz's plan.
+- Invoice check (`src/imports/invoice/`): pdf.js reads the PDF in the browser (no server, no API);
+  `parse.ts` knows KRIEF (charge codes, word-reversed Hebrew) and מעיין (UNIFREIGHT layout), and
+  checks that the lines add up to the invoice's subtotal; other carriers are typed in by hand.
+  `check.ts` compares fixed fees with the carrier's earlier invoices (same mode), freight with the
+  lane (≥3 shipments; per shipment up to 50 kg, per kg above), chargeable weight with weight and
+  volume, and freight billed on supplier-paid terms; it drafts a letter to the carrier. Table
+  `import_invoices` holds the 2026 invoices (`imports-invoices.sql`, OneDrive only) and every check.
+  Verified on the real 2026 bundles (git-ignored `scripts/imports/*.local.test.ts`): 72 of 76
+  invoices read identical to Liraz's Excel, all 88 add up, 10 flagged.
+- Not built yet: consolidation and the later stages of Liraz's plan.
 
 ## Stack
 

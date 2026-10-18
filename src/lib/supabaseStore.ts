@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '../config';
+import { fromRow, toRow } from '../imports/invoice/stored';
 import type { ImportRequest, Shipment } from '../imports/model';
 import type { DaySummary, Store } from './store';
 import type { AdviceDecision, DayRow, Place, Profile, TaskRow, Worker } from './types';
@@ -203,6 +204,17 @@ export function createSupabaseStore(): Store {
       return check(
         await sb.from('import_requests').select('*').order('created_at', { ascending: false }).limit(limit),
       ) as ImportRequest[];
+    },
+
+    async listImportInvoices() {
+      const rows = await fetchAll<Record<string, unknown>>((a, b) =>
+        sb.from('import_invoices').select('*').order('invoice_date', { ascending: false }).range(a, b),
+      );
+      return rows.map(fromRow);
+    },
+
+    async saveImportInvoice(inv) {
+      check(await sb.from('import_invoices').upsert(toRow(inv), { onConflict: 'carrier,invoice_no' }));
     },
 
     async listAdvice(from, to) {

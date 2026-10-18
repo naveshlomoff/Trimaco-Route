@@ -2,6 +2,7 @@
 // (supabaseStore.ts); local development can run on an in-memory copy
 // (memoryStore.ts) to try the screens without logging in.
 
+import type { StoredInvoice } from '../imports/invoice/stored';
 import type { ImportRequest, Shipment } from '../imports/model';
 import type { AdviceDecision, DayRow, Place, PlaceKind, Profile, Region, TaskRow, Worker } from './types';
 
@@ -78,6 +79,10 @@ export interface Store {
   recordImportRequest(r: ImportRequest): Promise<void>;
   /** Newest first. */
   listImportRequests(limit: number): Promise<ImportRequest[]>;
+  /** Every invoice kept: the 2026 ones and those checked since. */
+  listImportInvoices(): Promise<StoredInvoice[]>;
+  /** Keeps a checked invoice (replacing an earlier check of the same one). */
+  saveImportInvoice(inv: StoredInvoice): Promise<void>;
 }
 
 let current: Store | null = null;

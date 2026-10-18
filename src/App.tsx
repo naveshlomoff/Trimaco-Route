@@ -4,6 +4,7 @@ import { isConfigured } from './config';
 import { store } from './lib/store';
 import { ImportsHome } from './imports/ui/ImportsHome';
 import { ImportsHistory } from './imports/ui/ImportsHistory';
+import { InvoiceCheck } from './imports/ui/InvoiceCheck';
 import { canUseImports, deviceCode, type Place, type Profile, type Worker } from './lib/types';
 import { Dashboard } from './ui/admin/Dashboard';
 import { ImportChat } from './ui/admin/ImportChat';
@@ -106,6 +107,7 @@ function Shell({ path }: { path: string }) {
     app === 'imports'
       ? [
           { path: '/imports', label: 'המלצה למשלוח' },
+          { path: '/imports/invoice', label: 'בדיקת חשבונית' },
           { path: '/imports/history', label: 'היסטוריה' },
         ]
       : app === 'route'
@@ -180,6 +182,7 @@ function route(path: string, isAdmin: boolean) {
 
 function importsRoute(path: string) {
   if (path === '/imports/history') return <ImportsHistory />;
+  if (path === '/imports/invoice') return <InvoiceCheck />;
   return <ImportsHome />;
 }
 

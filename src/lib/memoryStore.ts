@@ -3,6 +3,7 @@
 // functions in supabase/schema.sql closely enough to click through every
 // screen without a server.
 
+import type { StoredInvoice } from '../imports/invoice/stored';
 import type { ImportRequest, Shipment } from '../imports/model';
 import type { Store } from './store';
 import type { AdviceDecision, DayRow, Place, Profile, TaskRow, Worker } from './types';
@@ -12,6 +13,7 @@ export interface MemorySeed {
   workers: Worker[];
   places: Omit<Place, 'id'>[];
   imports?: Shipment[];
+  invoices?: StoredInvoice[];
   /** Start on the welcome screen instead of signed in as an admin. */
   startSignedOut?: boolean;
 }
@@ -42,6 +44,7 @@ export function createMemoryStore(seed: MemorySeed): Store {
   let advice: AdviceDecision[] = [];
   const importShipments: Shipment[] = (seed.imports ?? []).map((s) => ({ ...s, id: newId() }));
   const importRequests: ImportRequest[] = [];
+  let importInvoices: StoredInvoice[] = seed.invoices ?? [];
   const notify = () => listeners.forEach((l) => l());
 
   return {
@@ -177,6 +180,15 @@ export function createMemoryStore(seed: MemorySeed): Store {
     },
     async listImportRequests(limit) {
       return importRequests.slice(0, limit);
+    },
+    async listImportInvoices() {
+      return importInvoices;
+    },
+    async saveImportInvoice(inv) {
+      importInvoices = [
+        { ...inv, created_at: new Date().toISOString(), created_by: me },
+        ...importInvoices.filter((i) => !(i.carrier === inv.carrier && i.invoiceNo === inv.invoiceNo)),
+      ];
     },
     async listAdvice(from, to) {
       return advice
