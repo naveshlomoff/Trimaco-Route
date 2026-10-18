@@ -51,6 +51,7 @@ export function ImportsHome() {
   const suppliers = useMemo(() => (shipments ? suppliersOf(shipments, entered) : []), [shipments, entered]);
   const countries = useMemo(() => (shipments ? countriesOf(shipments) : []), [shipments]);
   const weightKg = num(weight);
+  const knownSupplier = suppliers.find((s) => s.name.toUpperCase() === supplier.trim().toUpperCase());
 
   const result: Recommendation | null = useMemo(() => {
     if (!shipments || !country || !weightKg) return null;
@@ -109,7 +110,9 @@ export function ImportsHome() {
         <div>
           <h1 className="h1">משלוח אווירי חדש</h1>
           <p className="muted small">
-            ממלאים את פרטי המשלוח ומקבלים המלצה על מוביל, לפי משלוחי העבר. בלי הצעות מחיר.
+            ממלאים את פרטי המשלוח ומקבלים המלצה על מוביל, לפי משלוחי העבר. בלי הצעות מחיר. ההמלצה נקבעת לפי מדינת
+            המוצא והמשקל, לא לפי הספק: ספק חדש מאיטליה מקבל את ההמלצה של איטליה. אם הספק שולח הפעם ממדינה אחרת,
+            משנים את המדינה.
           </p>
         </div>
         <div className="form-grid">
@@ -132,6 +135,21 @@ export function ImportsHome() {
                 </option>
               ))}
             </select>
+            {knownSupplier && knownSupplier.countries.length > 1 && (
+              <span className="row wrap">
+                <span className="muted small">שלח בעבר מ:</span>
+                {knownSupplier.countries.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={c === country ? 'chip chip-ok' : 'chip chip-muted'}
+                    onClick={() => (setCountry(c), setSaved(null))}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </span>
+            )}
           </label>
           <label className="field">
             <span>משקל בפועל (ק״ג)</span>
@@ -244,6 +262,9 @@ function Result({ result, country }: { result: Recommendation; country: string }
           {alternative && (
             <p>
               חלופה: <strong>{alternative.carrier}</strong>, כ-{shekels(alternative.cost)}
+              {alternative.basis !== best.basis && alternative.basis === 'region' && (
+                <span className="muted"> (לפי משלוחים מ{REGION_LABELS[result.region]}, לא מ{country})</span>
+              )}
               {best.cost < alternative.cost && (
                 <span className="chip chip-ok">חיסכון של כ-{shekels(alternative.cost - best.cost)}</span>
               )}

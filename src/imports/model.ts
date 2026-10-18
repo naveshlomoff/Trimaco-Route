@@ -325,7 +325,7 @@ export interface ImportRequest {
 export function suppliersOf(
   history: Shipment[],
   more: { supplier: string | null; country: string | null }[] = [],
-): { name: string; country: string; count: number }[] {
+): { name: string; country: string; countries: string[]; count: number }[] {
   const by = new Map<string, { name: string; countries: Map<string, number>; count: number }>();
   const all = [
     ...history,
@@ -340,7 +340,10 @@ export function suppliersOf(
     by.set(key, e);
   }
   return [...by.values()]
-    .map((e) => ({ name: e.name, count: e.count, country: [...e.countries].sort((a, b) => b[1] - a[1])[0][0] }))
+    .map((e) => {
+      const countries = [...e.countries].sort((a, b) => b[1] - a[1]).map(([c]) => c);
+      return { name: e.name, count: e.count, country: countries[0], countries };
+    })
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 

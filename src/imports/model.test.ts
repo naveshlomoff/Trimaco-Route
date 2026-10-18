@@ -83,7 +83,7 @@ describe('recommend', () => {
 describe('suppliersOf', () => {
   it('remembers a supplier Adi entered, with its country', () => {
     const list = suppliersOf(history, [{ supplier: 'NEW MED', country: 'פולין' }, { supplier: null, country: 'סין' }]);
-    expect(list.find((s) => s.name === 'NEW MED')).toMatchObject({ country: 'פולין', count: 1 });
+    expect(list.find((s) => s.name === 'NEW MED')).toMatchObject({ country: 'פולין', countries: ['פולין'], count: 1 });
     expect(list.find((s) => s.name === 'ACME')).toMatchObject({ country: 'איטליה' });
   });
 });
