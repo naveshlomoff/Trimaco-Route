@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../../appContext';
 import { store } from '../../lib/store';
 import { copyText } from '../../ui/clipboard';
-import { checkInvoice, letterFor, type Report } from '../invoice/check';
+import { checkInvoice, feeNorms, letterFor, type Report } from '../invoice/check';
 import { pdfLines, type PdfJs } from '../invoice/extract';
-import { ITEM_LABELS, parseInvoices, type InvoiceLine, type Item, type ParsedInvoice } from '../invoice/parse';
+import { docName, goodsInvoiceOf, ITEM_LABELS, parseInvoices, type InvoiceLine, type Item, type ParsedInvoice } from '../invoice/parse';
 import type { StoredInvoice } from '../invoice/stored';
 import { countriesOf, INCOTERMS } from '../model';
 import { shekels, useShipments } from './useShipments';
@@ -42,6 +42,8 @@ export function InvoiceCheck() {
   const [manual, setManual] = useState(false);
   /** The PDF has no text at all: a scan of paper. */
   const [scanned, setScanned] = useState(false);
+  /** Total Care's Dutch company billing the goods themselves: not a shipping invoice. */
+  const [goods, setGoods] = useState<ReturnType<typeof goodsInvoiceOf>>(null);
 
   useEffect(() => {
     store()
@@ -60,6 +62,11 @@ export function InvoiceCheck() {
     () => (draft && shipments ? checkInvoice(draft, yardstick, shipments) : null),
     [draft, yardstick, shipments],
   );
+  // the fixed fees need 3 earlier invoices of the carrier in the same mode
+  const noFeeNorms = useMemo(
+    () => !!draft && !manual && feeNorms(yardstick, draft.carrier, draft.mode).size === 0,
+    [draft, manual, yardstick],
+  );
   const already = history?.find((h) => draft && h.carrier === draft.carrier && h.invoiceNo === draft.invoiceNo);
 
   useEffect(() => {
@@ -77,6 +84,7 @@ export function InvoiceCheck() {
     try {
       const pages = await readPdf(file);
       setScanned(pages.every((p) => p.length === 0));
+      setGoods(goodsInvoiceOf(pages));
       const invoices = parseInvoices(pages);
       setFound(invoices);
       setDraft(invoices.length === 1 ? withKnownCountry(invoices[0]) : null);
@@ -125,8 +133,8 @@ export function InvoiceCheck() {
         <div>
           <h1 className="h1">בדיקת חשבונית</h1>
           <p className="muted small">
-            מעלים את החשבונית של המוביל (PDF) אחרי המשלוח. הכלי קורא את הסעיפים ומשווה למה שאותו מוביל חייב בעבר. כרגע
-            נקראות אוטומטית חשבוניות של KRIEF ושל מעיין, ולשאר אפשר להזין את הסכומים ידנית.
+            מעלים את החשבונית של המוביל (PDF). הכלי קורא את הסעיפים ומשווה למה שאותו מוביל חייב בעבר. כרגע נקראות
+            אוטומטית חשבוניות ובקשות תשלום של KRIEF ושל טוטל קר, וחשבוניות של מעיין. לשאר אפשר להזין את הסכומים ידנית.
           </p>
         </div>
         <div className="row wrap">
@@ -155,9 +163,18 @@ export function InvoiceCheck() {
             אם אין, אפשר ללחוץ "הזנה ידנית".
           </p>
         )}
-        {found && found.length === 0 && !scanned && (
+        {found && found.length === 0 && goods && (
           <p className="notice">
-            לא מצאתי בקובץ חשבונית של KRIEF או של מעיין. אולי זה מוביל אחר או מסמך סרוק. אפשר ללחוץ "הזנה ידנית".
+            זו חשבונית של {goods.issuer} (החברה ההולנדית של טוטל קר) על הסחורה עצמה, שמשולמת לספק דרכם. היא לא על
+            המשלוח, ולכן אין בה מה להשוות.
+            {goods.fees.length > 0 &&
+              ` מעבר לסחורה יש בה ${goods.fees.map((f) => `${f.label} ${f.amount.toLocaleString('he-IL')} ${f.currency}`).join(' ו')}.`}{' '}
+            את המשלוח בודקים בבקשת התשלום או בחשבונית המס של טוטל קר.
+          </p>
+        )}
+        {found && found.length === 0 && !scanned && !goods && (
+          <p className="notice">
+            לא מצאתי בקובץ חשבונית או בקשת תשלום של KRIEF, טוטל קר או מעיין. אולי זה מוביל אחר. אפשר ללחוץ "הזנה ידנית".
           </p>
         )}
         {found && found.length > 1 && (
@@ -170,7 +187,7 @@ export function InvoiceCheck() {
                   className={draft?.invoiceNo === f.invoiceNo ? 'btn btn-primary btn-small' : 'btn btn-small'}
                   onClick={() => (setDraft(withKnownCountry(f)), setSaved(false))}
                 >
-                  {f.carrier} {f.invoiceNo}
+                  {f.carrier} · {docName(f)}
                   {f.supplier ? ` · ${f.supplier}` : ''}
                 </button>
               ))}
@@ -185,11 +202,18 @@ export function InvoiceCheck() {
         <section className="card stack">
           <div className="row between wrap">
             <h2 className="h2">
-              {draft.carrier} {draft.invoiceNo ? `· חשבונית ${draft.invoiceNo}` : ''}
+              {draft.carrier}
+              {draft.invoiceNo ? ` · ${docName(draft)}` : ''}
             </h2>
             {draft.date && <span className="muted small">{draft.date.split('-').reverse().join('.')}</span>}
           </div>
-          <p className="muted small">מה שנקרא מהחשבונית. מה שחסר או שגוי אפשר לתקן כאן, והבדיקה מתעדכנת.</p>
+          {draft.document === 'request' && (
+            <p className="notice">
+              זו בקשת תשלום של {draft.carrier}: הערכה של הסכומים לפני החשבונית הסופית. טוב לבדוק אותה לפני שמשלמים, וכדאי
+              לבדוק גם את החשבונית הסופית כשתגיע.
+            </p>
+          )}
+          <p className="muted small">מה שנקרא מהמסמך. מה שחסר או שגוי אפשר לתקן כאן, והבדיקה מתעדכנת.</p>
           <div className="form-grid">
             <label className="field">
               <span>ספק</span>
@@ -233,13 +257,19 @@ export function InvoiceCheck() {
             </label>
           </div>
           {draft.mode === 'sea' && <p className="notice">זה משלוח ימי. הבדיקה משווה עמלות קבועות בלבד, בלי מחיר הובלה.</p>}
+          {noFeeNorms && (
+            <p className="notice">
+              עוד אין מספיק חשבוניות קודמות של {draft.carrier} במשלוח {draft.mode === 'sea' ? 'ימי' : 'אווירי'} כדי להשוות את
+              העמלות (צריך לפחות 3). כל בדיקה שנשמרת מצטרפת להשוואה, כך שהבדיקה תשתפר עם הזמן.
+            </p>
+          )}
         </section>
       )}
 
       {draft && report && (
         <section className="card stack">
           <div className="row between wrap">
-            <h2 className="h2">{report.status === 'ok' ? 'הכול תקין' : 'מה נמצא'}</h2>
+            <h2 className="h2">{report.status !== 'ok' ? 'מה נמצא' : noFeeNorms ? 'לא נמצאו חריגות' : 'הכול תקין'}</h2>
             {report.overcharge > 0 && <span className="chip chip-warn">חריגה אפשרית של כ-{shekels(report.overcharge)}</span>}
           </div>
           {report.incomplete && (

@@ -1,6 +1,6 @@
 // An invoice as kept in the database: the reading plus the check.
 import type { Finding } from './check';
-import type { ParsedInvoice } from './parse';
+import { REQUEST_PREFIX, type ParsedInvoice } from './parse';
 
 export interface StoredInvoice extends ParsedInvoice {
   id?: string;
@@ -21,6 +21,7 @@ export function fromRow(r: Record<string, unknown>): StoredInvoice {
     created_by: (r.created_by as string) ?? null,
     carrier: r.carrier as StoredInvoice['carrier'],
     invoiceNo: (r.invoice_no as string) ?? null,
+    document: String(r.invoice_no ?? '').startsWith(REQUEST_PREFIX) ? 'request' : 'invoice',
     date: (r.invoice_date as string) ?? null,
     declarationNo: (r.declaration_no as string) ?? null,
     supplier: (r.supplier as string) ?? null,

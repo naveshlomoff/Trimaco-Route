@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { store } from '../../lib/store';
 import type { Profile } from '../../lib/types';
+import { docName } from '../invoice/parse';
 import type { StoredInvoice } from '../invoice/stored';
 import type { ImportRequest } from '../model';
 import { shekels, useShipments } from './useShipments';
@@ -100,7 +101,7 @@ export function ImportsHistory() {
                     {c.status === 'ok' ? 'תקין' : c.overcharge > 0 ? `חריגה ${shekels(c.overcharge)}` : 'לבדיקה'}
                   </span>
                   <span className="overlap-body">
-                    {c.carrier} · {c.invoiceNo}
+                    {c.carrier} · {docName(c)}
                     {c.supplier ? ` · ${c.supplier}` : ''}
                     {person(c.created_by) && <span className="muted"> · {person(c.created_by)}</span>}
                   </span>

@@ -3,7 +3,7 @@
 // Every finding says what was charged, what was expected and why.
 
 import { bandOf, KG_PER_CBM, regionOf, supplierPays, type Shipment } from '../model';
-import { complete, ITEM_LABELS, type InvoiceLine, type Item, type ParsedInvoice } from './parse';
+import { complete, docName, ITEM_LABELS, type InvoiceLine, type Item, type ParsedInvoice } from './parse';
 
 /** Charges that are the same on every invoice of a carrier (a delivery order varies: courier or not). */
 const FIXED: Item[] = ['broker_fee', 'global_gate', 'cyber', 'docs', 'formalities'];
@@ -230,7 +230,7 @@ export function letterFor(inv: ParsedInvoice, report: Report, signer: string): s
   return [
     'שלום רב,',
     '',
-    `בבדיקת חשבונית ${inv.invoiceNo ?? ''}${inv.date ? ` מתאריך ${inv.date.split('-').reverse().join('.')}` : ''}${what ? `, עבור המשלוח (${what})` : ''}, מצאנו:`,
+    `בבדיקת ${docName(inv)}${inv.date ? ` מתאריך ${inv.date.split('-').reverse().join('.')}` : ''}${what ? `, עבור המשלוח (${what})` : ''}, מצאנו:`,
     ...lines,
     '',
     report.overcharge > 0
