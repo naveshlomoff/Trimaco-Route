@@ -105,7 +105,7 @@ export function ImportsHome() {
         <div className="form-grid">
           <label className="field">
             <span>ספק</span>
-            <input list="import-suppliers" value={supplier} onChange={(e) => pickSupplier(e.target.value)} placeholder="למשל ORTHOFIX" dir="ltr" />
+            <input list="import-suppliers" value={supplier} onChange={(e) => pickSupplier(e.target.value)} placeholder="שם הספק" dir="ltr" />
             <datalist id="import-suppliers">
               {suppliers.map((s) => (
                 <option key={s.name} value={s.name} />
