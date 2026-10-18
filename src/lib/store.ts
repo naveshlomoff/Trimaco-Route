@@ -2,6 +2,7 @@
 // (supabaseStore.ts); local development can run on an in-memory copy
 // (memoryStore.ts) to try the screens without logging in.
 
+import type { ImportRequest, Shipment } from '../imports/model';
 import type { AdviceDecision, DayRow, Place, PlaceKind, Profile, Region, TaskRow, Worker } from './types';
 
 export interface NewPlace {
@@ -42,7 +43,7 @@ export interface Store {
   enter(name: string): Promise<string | null>;
   onAuthChange(cb: () => void): () => void;
   listProfiles(): Promise<Profile[]>;
-  updateProfile(id: string, patch: Partial<Pick<Profile, 'role' | 'display_name'>>): Promise<void>;
+  updateProfile(id: string, patch: Partial<Pick<Profile, 'role' | 'display_name' | 'imports'>>): Promise<void>;
 
   loadWorkers(): Promise<Worker[]>;
   loadPlaces(): Promise<Place[]>;
@@ -71,6 +72,12 @@ export interface Store {
    */
   recordAdvice(rows: AdviceDecision[], opts?: { keepExisting?: boolean }): Promise<void>;
   listAdvice(from: string, to: string): Promise<AdviceDecision[]>;
+
+  // Trimaco Imports
+  listImportShipments(): Promise<Shipment[]>;
+  recordImportRequest(r: ImportRequest): Promise<void>;
+  /** Newest first. */
+  listImportRequests(limit: number): Promise<ImportRequest[]>;
 }
 
 let current: Store | null = null;

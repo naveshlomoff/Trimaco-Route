@@ -386,3 +386,84 @@ create policy "advice insert" on public.advice_decisions for insert to authentic
 drop policy if exists "advice update" on public.advice_decisions;
 create policy "advice update" on public.advice_decisions for update to authenticated
   using (public.is_member()) with check (public.is_member() and decided_by = auth.uid());
+
+-- ============ Trimaco Imports (stage A: the carrier tool for Adi) ============
+-- Admins see it, and devices an admin turns it on for (Adi). Supplier names and
+-- costs live only here, never in the public repo.
+
+alter table public.profiles add column if not exists imports boolean not null default false;
+
+create or replace function public.can_imports() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and (role = 'admin' or (role = 'planner' and imports)));
+$$;
+
+-- Past air and sea shipments with their costs (from Liraz's 2026 analysis), and later new ones.
+create table if not exists public.import_shipments (
+  id uuid primary key default gen_random_uuid(),
+  source text not null default 'history_2026',
+  carrier text not null,
+  month text,                                   -- '2026-08'
+  invoice_no text,
+  declaration_no text,
+  supplier text not null,
+  country text not null,
+  origin text,
+  mode text not null check (mode in ('air', 'sea')),
+  incoterms text,
+  weight_kg double precision,
+  cbm double precision,
+  chargeable_kg double precision,
+  goods_value double precision,
+  taxes double precision,
+  freight double precision not null default 0,  -- ₪ without VAT and taxes
+  inland double precision not null default 0,
+  fees double precision not null default 0,
+  freight_billed boolean not null default true,
+  in_comparison boolean not null default false,
+  excluded boolean not null default false,
+  notes text,
+  created_at timestamptz not null default now()
+);
+
+-- Every carrier choice Adi records on the recommendation screen (to measure the trial).
+create table if not exists public.import_requests (
+  id uuid primary key default gen_random_uuid(),
+  created_at timestamptz not null default now(),
+  created_by uuid default auth.uid() references auth.users (id) on delete set null,
+  supplier text,
+  country text not null,
+  weight_kg double precision not null,
+  cbm double precision,
+  incoterms text,
+  goods_value double precision,
+  chargeable_kg double precision not null,
+  kind text not null,
+  recommended text,
+  recommended_cost double precision,
+  confidence text,
+  chosen text not null,
+  chosen_cost double precision,
+  notes text
+);
+
+grant execute on function public.can_imports() to authenticated;
+revoke execute on function public.can_imports() from public, anon;
+grant select, insert, update, delete on public.import_shipments to authenticated;
+grant select, insert on public.import_requests to authenticated;
+revoke all on public.import_shipments, public.import_requests from anon;
+alter table public.import_shipments enable row level security;
+alter table public.import_requests enable row level security;
+
+drop policy if exists "imports shipments read" on public.import_shipments;
+create policy "imports shipments read" on public.import_shipments for select to authenticated using (public.can_imports());
+drop policy if exists "imports shipments admin write" on public.import_shipments;
+create policy "imports shipments admin write" on public.import_shipments for all to authenticated
+  using (public.is_admin()) with check (public.is_admin());
+drop policy if exists "imports requests read" on public.import_requests;
+create policy "imports requests read" on public.import_requests for select to authenticated using (public.can_imports());
+drop policy if exists "imports requests insert" on public.import_requests;
+create policy "imports requests insert" on public.import_requests for insert to authenticated
+  with check (public.can_imports() and created_by = auth.uid());

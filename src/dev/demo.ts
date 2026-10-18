@@ -6,6 +6,7 @@
 import seedPlaces from '../../supabase/seed-places.json';
 import { createMemoryStore } from '../lib/memoryStore';
 import type { Store } from '../lib/store';
+import type { Shipment } from '../imports/model';
 import type { Place, Worker } from '../lib/types';
 
 interface LocalTeam {
@@ -14,6 +15,37 @@ interface LocalTeam {
 }
 
 const local = Object.values(import.meta.glob<LocalTeam>('./team.local.ts', { eager: true }))[0];
+// The real 2026 shipments, when a local copy exists (git-ignored); otherwise a few made-up ones.
+const localImports = Object.values(
+  import.meta.glob<{ default: Shipment[] }>('./imports.local.json', { eager: true }),
+)[0]?.default;
+
+const demoShipment = (carrier: string, country: string, supplier: string, kg: number, freight: number, fees: number): Shipment => ({
+  carrier,
+  month: '2026-06',
+  supplier,
+  country,
+  mode: 'air',
+  incoterms: 'EXW',
+  weight_kg: kg,
+  cbm: null,
+  chargeable_kg: kg,
+  goods_value: kg * 900,
+  freight,
+  inland: 0,
+  fees,
+  freight_billed: true,
+  in_comparison: true,
+  excluded: false,
+  notes: null,
+});
+const fallbackImports: Shipment[] = [
+  demoShipment('KRIEF', 'איטליה', 'ACME MEDICAL', 25, 1500, 480),
+  demoShipment('KRIEF', 'איטליה', 'ACME MEDICAL', 35, 1650, 500),
+  demoShipment('מעיין', 'איטליה', 'BRAVO SURGICAL', 30, 1900, 650),
+  demoShipment('מעיין', 'הולנד', 'DELTA ORTHO', 120, 1700, 700),
+  demoShipment('KRIEF', 'ארה״ב', 'ECHO DEVICES', 150, 3200, 900),
+];
 
 const fallbackWorkers: Worker[] = ['דני', 'רוני', 'מאיה', 'שחר'].map((name, i) => ({
   id: `w${i + 1}`,
@@ -73,6 +105,7 @@ export function createDemoStore(): Store {
       lng: p.lng ?? null,
       notes: null,
     })),
+    imports: localImports ?? fallbackImports,
   });
 }
 

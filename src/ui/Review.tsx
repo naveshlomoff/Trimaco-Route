@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { navigate, useApp } from '../appContext';
+import { ROUTE_HOME, navigate, useApp } from '../appContext';
 import { adviseDay, fixedTasks, type Move } from '../lib/advisor';
 import { formatDayLong, resolveDate } from '../lib/dates';
 import {
@@ -42,7 +42,7 @@ export function Review() {
   const [applied, setApplied] = useState<Applied[]>([]);
 
   useEffect(() => {
-    if (!draft) navigate('/');
+    if (!draft) navigate(ROUTE_HOME);
   }, [draft]);
 
   useEffect(() => {
@@ -198,7 +198,7 @@ export function Review() {
       <section className="card stack">
         <div className="row between wrap">
           <h1 className="h1">בדיקה לפני שמירה</h1>
-          <button className="btn btn-ghost btn-small" onClick={() => navigate('/')}>
+          <button className="btn btn-ghost btn-small" onClick={() => navigate(ROUTE_HOME)}>
             חזרה לעריכה
           </button>
         </div>

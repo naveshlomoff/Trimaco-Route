@@ -19,6 +19,21 @@ WhatsApp message to the team group every afternoon. The app has two phases:
     day, and the acceptance stats on the dashboard.
   - Not yet: traffic-aware times (Google Maps Routes API), building a schedule from a task list.
 
+## Trimaco Imports (second app, same site and login)
+
+Liraz's air-import analysis, stage A: a tool for Adi (and admins) to pick the carrier for an air
+shipment before ordering. `#/` is a launcher with one square per app for whoever has Imports
+(admins, and planners with `profiles.imports`, set in `#/admin/users`); everyone else goes straight
+to Route, whose home is `#/route`.
+- `src/imports/model.ts`: chargeable weight = max(kg, CBM × 167); up to 10 kg → DHL express
+  (306 ₪ + ~65 ₪/kg); supplier-paid terms (CPT, DAP...) → compare release costs only; otherwise
+  the cheapest median of past shipments on the lane (country + weight band; per shipment up to
+  50 kg, per kg above), else the region, never another part of the world. Shows the evidence.
+- Tables `import_shipments` (2026 history, loaded from `imports-setup.sql` in Nave's OneDrive
+  folder, never in this repo) and `import_requests` (the carrier Adi chose, for the trial).
+- Not built yet: the invoice check after shipping (reading carrier PDFs), consolidation, the
+  later stages of Liraz's plan.
+
 ## Stack
 
 - Vite + React + TypeScript, static site, deployed to **GitHub Pages** by `.github/workflows/deploy.yml`

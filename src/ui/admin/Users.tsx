@@ -28,7 +28,7 @@ export function Users() {
     void load();
   }, [load]);
 
-  async function update(id: string, patch: Partial<Pick<Profile, 'role' | 'display_name'>>) {
+  async function update(id: string, patch: Partial<Pick<Profile, 'role' | 'display_name' | 'imports'>>) {
     setError(null);
     try {
       await store().updateProfile(id, patch);
@@ -45,7 +45,7 @@ export function Users() {
           <h1 className="h1">משתמשים</h1>
           <p className="muted small">
             כל טלפון או מחשב שנכנס לאפליקציה. אין סיסמאות: מי שפותח את הקישור וכותב שם נכנס מיד. מכשיר לא מוכר אפשר
-            לחסום, וכך הוא לא יראה כלום.
+            לחסום, וכך הוא לא יראה כלום. "Imports" פותח למכשיר גם את Trimaco Imports (למנהלים הוא פתוח תמיד).
           </p>
         </div>
         {error && <p className="error">{error}</p>}
@@ -77,6 +77,16 @@ export function Users() {
                     ))}
                     {p.role === 'pending' && <option value="pending">{ROLE_LABELS.pending}</option>}
                   </select>
+                  {p.role === 'planner' && (
+                    <label className="check">
+                      <input
+                        type="checkbox"
+                        checked={p.imports === true}
+                        onChange={(e) => void update(p.id, { imports: e.target.checked })}
+                      />
+                      <span>Imports</span>
+                    </label>
+                  )}
                   <button
                     className="btn btn-ghost btn-small"
                     onClick={() => {

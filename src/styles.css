@@ -796,3 +796,74 @@ progress {
   white-space: pre-wrap;
   direction: rtl;
 }
+
+/* ---------- launcher and Imports ---------- */
+
+.launcher {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.launcher-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px 20px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.launcher-tile:hover {
+  border-color: var(--brand);
+}
+
+.launcher-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.launcher-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.launcher-text {
+  color: var(--muted);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 16px;
+}
+
+.result-cost strong {
+  font-size: 1.6rem;
+}
+
+.inline-input {
+  width: 140px;
+  min-height: 36px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+tr.muted td {
+  color: var(--muted);
+}

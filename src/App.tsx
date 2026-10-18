@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { AppContext, useApp } from './appContext';
 import { isConfigured } from './config';
 import { store } from './lib/store';
-import { deviceCode, type Place, type Profile, type Worker } from './lib/types';
+import { ImportsHome } from './imports/ui/ImportsHome';
+import { ImportsHistory } from './imports/ui/ImportsHistory';
+import { canUseImports, deviceCode, type Place, type Profile, type Worker } from './lib/types';
 import { Dashboard } from './ui/admin/Dashboard';
 import { ImportChat } from './ui/admin/ImportChat';
 import { Places } from './ui/admin/Places';
@@ -10,6 +12,8 @@ import { Users } from './ui/admin/Users';
 import { Week } from './ui/admin/Week';
 import { DayView } from './ui/DayView';
 import { Home } from './ui/Home';
+import { Launcher } from './ui/Launcher';
+import { ROUTE_HOME } from './appContext';
 import { Login } from './ui/Login';
 import { Review } from './ui/Review';
 import { BUILD_ID, useUpdateAvailable } from './version';
@@ -90,22 +94,37 @@ export function App({ demo }: { demo: boolean }) {
   );
 }
 
+type App = 'launcher' | 'route' | 'imports';
+
 function Shell({ path }: { path: string }) {
   const { profile, demo } = useApp();
   const isAdmin = profile.role === 'admin';
-  const tabs = [
-    { path: '/', label: 'סידור יומי' },
-    ...(isAdmin
+  const imports = canUseImports(profile);
+  // Whoever has both apps starts on a screen with one square per app; everyone else goes straight to Route.
+  const app: App = imports && path === '/' ? 'launcher' : imports && path.startsWith('/imports') ? 'imports' : 'route';
+  const tabs =
+    app === 'imports'
       ? [
-          { path: '/admin', label: 'לוח מנהל' },
-          { path: '/admin/places', label: 'מקומות' },
-          { path: '/admin/import', label: 'ייבוא' },
-          { path: '/admin/users', label: 'משתמשים' },
+          { path: '/imports', label: 'המלצה למשלוח' },
+          { path: '/imports/history', label: 'היסטוריה' },
         ]
-      : []),
-  ];
-  const active = tabs.reduce((best, t) => (path.startsWith(t.path) && t.path.length > best.length ? t.path : best), '/');
+      : app === 'route'
+        ? [
+            { path: ROUTE_HOME, label: 'סידור יומי' },
+            ...(isAdmin
+              ? [
+                  { path: '/admin', label: 'לוח מנהל' },
+                  { path: '/admin/places', label: 'מקומות' },
+                  { path: '/admin/import', label: 'ייבוא' },
+                  { path: '/admin/users', label: 'משתמשים' },
+                ]
+              : []),
+          ]
+        : [];
+  const here = path === '/' ? ROUTE_HOME : path;
+  const active = tabs.reduce((best, t) => (here.startsWith(t.path) && t.path.length > best.length ? t.path : best), '');
   const updateAvailable = useUpdateAvailable();
+  const title = app === 'imports' ? 'Trimaco Imports' : app === 'route' ? 'Trimaco Route' : 'Trimaco';
 
   return (
     <>
@@ -116,9 +135,9 @@ function Shell({ path }: { path: string }) {
       )}
       <header className="app-header">
         <div className="app-header-inner">
-          <a className="brand" href="#/">
+          <a className="brand" href={imports ? '#/' : `#${ROUTE_HOME}`}>
             <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={28} height={28} />
-            <span>Trimaco Route</span>
+            <span>{title}</span>
             {demo && <span className="chip chip-warn">דמו</span>}
           </a>
           {/* No sign-out: without passwords, coming back would register a new device. */}
@@ -136,9 +155,11 @@ function Shell({ path }: { path: string }) {
           </nav>
         )}
       </header>
-      <main className="container">{route(path, isAdmin)}</main>
+      <main className="container">
+        {app === 'launcher' ? <Launcher /> : app === 'imports' ? importsRoute(path) : route(path, isAdmin)}
+      </main>
       <footer className="app-footer muted small" dir="ltr">
-        Trimaco Route · {BUILD_ID}
+        {title} · {BUILD_ID}
       </footer>
     </>
   );
@@ -155,6 +176,11 @@ function route(path: string, isAdmin: boolean) {
   const week = path.match(/^\/admin\/week(?:\/(\d{4}-\d{2}-\d{2}))?$/);
   if (isAdmin && week) return <Week key={week[1] ?? 'now'} date={week[1]} />;
   return <Home />;
+}
+
+function importsRoute(path: string) {
+  if (path === '/imports/history') return <ImportsHistory />;
+  return <ImportsHome />;
 }
 
 

@@ -3,6 +3,7 @@
 // functions in supabase/schema.sql closely enough to click through every
 // screen without a server.
 
+import type { ImportRequest, Shipment } from '../imports/model';
 import type { Store } from './store';
 import type { AdviceDecision, DayRow, Place, Profile, TaskRow, Worker } from './types';
 import { normalizeKey } from './text';
@@ -10,6 +11,7 @@ import { normalizeKey } from './text';
 export interface MemorySeed {
   workers: Worker[];
   places: Omit<Place, 'id'>[];
+  imports?: Shipment[];
   /** Start on the welcome screen instead of signed in as an admin. */
   startSignedOut?: boolean;
 }
@@ -38,6 +40,8 @@ export function createMemoryStore(seed: MemorySeed): Store {
   const days = new Map<string, DayRow>();
   let tasks: TaskRow[] = [];
   let advice: AdviceDecision[] = [];
+  const importShipments: Shipment[] = (seed.imports ?? []).map((s) => ({ ...s, id: newId() }));
+  const importRequests: ImportRequest[] = [];
   const notify = () => listeners.forEach((l) => l());
 
   return {
@@ -164,6 +168,15 @@ export function createMemoryStore(seed: MemorySeed): Store {
           { ...r, decided_by: me, decided_at: new Date().toISOString() },
         ];
       }
+    },
+    async listImportShipments() {
+      return importShipments;
+    },
+    async recordImportRequest(r) {
+      importRequests.unshift({ ...r, id: newId(), created_at: new Date().toISOString(), created_by: me });
+    },
+    async listImportRequests(limit) {
+      return importRequests.slice(0, limit);
     },
     async listAdvice(from, to) {
       return advice

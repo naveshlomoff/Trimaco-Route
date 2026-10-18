@@ -170,6 +170,12 @@ export interface Profile {
   display_name: string;
   role: Role;
   created_at?: string;
+  /** Planners who also get Trimaco Imports (admins always do). */
+  imports?: boolean;
+}
+
+export function canUseImports(p: Profile): boolean {
+  return p.role === 'admin' || (p.role === 'planner' && p.imports === true);
 }
 
 /** Short code shown on a waiting device, so the admin approves the right one. */

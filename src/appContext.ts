@@ -17,6 +17,9 @@ export function useApp(): AppData {
   return ctx;
 }
 
+/** Route's own home: "#/" is the screen with one square per app for whoever has Imports too. */
+export const ROUTE_HOME = '/route';
+
 export function navigate(path: string): void {
   window.location.hash = path;
   window.scrollTo(0, 0);

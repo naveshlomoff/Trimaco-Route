@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from '../config';
+import type { ImportRequest, Shipment } from '../imports/model';
 import type { DaySummary, Store } from './store';
 import type { AdviceDecision, DayRow, Place, Profile, TaskRow, Worker } from './types';
 
@@ -34,7 +35,7 @@ export function createSupabaseStore(): Store {
       if (!user) return null;
       const res = await sb
         .from('profiles')
-        .select('id, username, display_name, role, created_at')
+        .select('*') // '*' keeps working before a new column (imports) is added
         .eq('id', user.id)
         .maybeSingle();
       const profile = check(res) as Profile | null;
@@ -58,7 +59,7 @@ export function createSupabaseStore(): Store {
 
     async listProfiles() {
       return check(
-        await sb.from('profiles').select('id, username, display_name, role, created_at').order('created_at', { ascending: false }),
+        await sb.from('profiles').select('*').order('created_at', { ascending: false }),
       ) as Profile[];
     },
 
@@ -188,6 +189,20 @@ export function createSupabaseStore(): Store {
           ignoreDuplicates: opts?.keepExisting ?? false,
         }),
       );
+    },
+
+    async listImportShipments() {
+      return fetchAll<Shipment>((a, b) => sb.from('import_shipments').select('*').order('month').range(a, b));
+    },
+
+    async recordImportRequest(r) {
+      check(await sb.from('import_requests').insert(r));
+    },
+
+    async listImportRequests(limit) {
+      return check(
+        await sb.from('import_requests').select('*').order('created_at', { ascending: false }).limit(limit),
+      ) as ImportRequest[];
     },
 
     async listAdvice(from, to) {

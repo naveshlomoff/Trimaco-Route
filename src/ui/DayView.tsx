@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { navigate, useApp } from '../appContext';
+import { ROUTE_HOME, navigate, useApp } from '../appContext';
 import { formatDayLong } from '../lib/dates';
 import { writeDraft } from '../lib/draft';
 import { store } from '../lib/store';
@@ -46,7 +46,7 @@ export function DayView({ date }: { date: string }) {
     return (
       <div className="card stack">
         <p>לא נמצא סידור ליום הזה.</p>
-        <a href="#/">חזרה</a>
+        <a href={`#${ROUTE_HOME}`}>חזרה</a>
       </div>
     );
   }
@@ -71,7 +71,7 @@ export function DayView({ date }: { date: string }) {
   async function remove() {
     if (!window.confirm(`למחוק את הסידור של ${formatDayLong(date)}?`)) return;
     await store().deleteDay(date);
-    navigate('/');
+    navigate(ROUTE_HOME);
   }
 
   return (
