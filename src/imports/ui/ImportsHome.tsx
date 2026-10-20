@@ -66,8 +66,11 @@ export function ImportsHome() {
     if (known) setCountry(known.country);
   }
 
+  // every recorded shipment carries its number
+  const missingReference = !reference.trim();
+
   async function choose(carrier: string, estimate: Estimate | undefined) {
-    if (!result || !weightKg) return;
+    if (!result || !weightKg || missingReference) return;
     setSaveError(null);
     try {
       await store().recordImportRequest({
@@ -119,8 +122,14 @@ export function ImportsHome() {
         </div>
         <div className="form-grid">
           <label className="field">
-            <span>מספר מזהה</span>
-            <input value={reference} onChange={(e) => (setReference(e.target.value), setSaved(null))} placeholder="למשל מספר הזמנה" dir="ltr" />
+            <span>מספר מזהה (חובה)</span>
+            <input
+              value={reference}
+              onChange={(e) => (setReference(e.target.value), setSaved(null))}
+              placeholder="למשל מספר הזמנה"
+              dir="ltr"
+              required
+            />
           </label>
           <label className="field">
             <span>ספק</span>
@@ -196,17 +205,19 @@ export function ImportsHome() {
                 key={o.carrier}
                 className={o === result.best ? 'btn btn-primary btn-small' : 'btn btn-small'}
                 onClick={() => void choose(o.carrier, o)}
+                disabled={missingReference}
               >
                 {o.carrier}
               </button>
             ))}
             <input className="inline-input" value={other} onChange={(e) => setOther(e.target.value)} placeholder="מוביל אחר" />
             {other.trim() && (
-              <button className="btn btn-small" onClick={() => void choose(other.trim(), undefined)}>
+              <button className="btn btn-small" onClick={() => void choose(other.trim(), undefined)} disabled={missingReference}>
                 שמירה
               </button>
             )}
           </div>
+          {missingReference && <p className="error small">כדי לרשום את הבחירה צריך למלא מספר מזהה למעלה.</p>}
           {saved && <p className="notice notice-ok">נרשם: {saved}.</p>}
           {saveError && <p className="error">השמירה נכשלה: {saveError}</p>}
         </section>
