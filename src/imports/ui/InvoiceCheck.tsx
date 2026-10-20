@@ -19,7 +19,7 @@ async function readPdf(file: File): Promise<string[][]> {
 const STATUS = {
   ok: { label: 'תקין', chip: 'chip chip-ok' },
   over: { label: 'חריגה', chip: 'chip chip-warn' },
-  check: { label: 'לבדיקה', chip: 'chip chip-muted' },
+  check: { label: 'לבדיקה', chip: 'chip chip-danger' },
 } as const;
 
 const num = (s: string): number | null => {

@@ -31,6 +31,7 @@ const num = (s: string): number | null => {
 /** Stage A, before ordering: which carrier, and what it should cost. */
 export function ImportsHome() {
   const { shipments, error } = useShipments();
+  const [reference, setReference] = useState('');
   const [supplier, setSupplier] = useState('');
   const [country, setCountry] = useState('');
   const [weight, setWeight] = useState('');
@@ -70,6 +71,7 @@ export function ImportsHome() {
     setSaveError(null);
     try {
       await store().recordImportRequest({
+        reference: reference.trim() || null,
         supplier: supplier.trim() || null,
         country,
         weight_kg: weightKg,
@@ -116,6 +118,10 @@ export function ImportsHome() {
           </p>
         </div>
         <div className="form-grid">
+          <label className="field">
+            <span>מספר מזהה</span>
+            <input value={reference} onChange={(e) => (setReference(e.target.value), setSaved(null))} placeholder="למשל מספר הזמנה" dir="ltr" />
+          </label>
           <label className="field">
             <span>ספק</span>
             <input list="import-suppliers" value={supplier} onChange={(e) => pickSupplier(e.target.value)} placeholder="שם הספק" dir="ltr" />

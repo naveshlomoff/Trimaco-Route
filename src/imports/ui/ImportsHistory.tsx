@@ -62,6 +62,7 @@ export function ImportsHistory() {
                   <span className="overlap-date">{r.created_at ? new Date(r.created_at).toLocaleDateString('he-IL') : ''}</span>
                   <span className={r.recommended && r.chosen !== r.recommended ? 'chip chip-warn' : 'chip chip-ok'}>{r.chosen}</span>
                   <span className="overlap-body">
+                    {r.reference ? `${r.reference} · ` : ''}
                     {r.supplier ? `${r.supplier} · ` : ''}
                     {r.country} · {Math.round(r.chargeable_kg * 10) / 10} ק״ג
                     {r.recommended && r.chosen !== r.recommended && (
@@ -97,7 +98,7 @@ export function ImportsHistory() {
               {checked.map((c) => (
                 <li key={`${c.carrier}|${c.invoiceNo}`}>
                   <span className="overlap-date">{c.date ? c.date.split('-').reverse().join('.') : ''}</span>
-                  <span className={c.status === 'ok' ? 'chip chip-ok' : 'chip chip-warn'}>
+                  <span className={c.status === 'ok' ? 'chip chip-ok' : c.overcharge > 0 ? 'chip chip-warn' : 'chip chip-danger'}>
                     {c.status === 'ok' ? 'תקין' : c.overcharge > 0 ? `חריגה ${shekels(c.overcharge)}` : 'לבדיקה'}
                   </span>
                   <span className="overlap-body">

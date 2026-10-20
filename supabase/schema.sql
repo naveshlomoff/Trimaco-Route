@@ -433,6 +433,7 @@ create table if not exists public.import_requests (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   created_by uuid default auth.uid() references auth.users (id) on delete set null,
+  reference text,                               -- Adi's number for the shipment
   supplier text,
   country text not null,
   weight_kg double precision not null,
@@ -448,6 +449,8 @@ create table if not exists public.import_requests (
   chosen_cost double precision,
   notes text
 );
+
+alter table public.import_requests add column if not exists reference text;
 
 grant execute on function public.can_imports() to authenticated;
 revoke execute on function public.can_imports() from public, anon;

@@ -460,6 +460,11 @@ input[type='file'] {
   color: var(--ok);
 }
 
+.chip-danger {
+  background: #fdecea;
+  color: var(--danger);
+}
+
 .chip.region-tlv { background: color-mix(in srgb, var(--r-tlv) 13%, white); color: var(--r-tlv); }
 .chip.region-center { background: color-mix(in srgb, var(--r-center) 13%, white); color: var(--r-center); }
 .chip.region-sharon { background: color-mix(in srgb, var(--r-sharon) 13%, white); color: var(--r-sharon); }

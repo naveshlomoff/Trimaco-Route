@@ -197,7 +197,9 @@ export function createSupabaseStore(): Store {
     },
 
     async recordImportRequest(r) {
-      check(await sb.from('import_requests').insert(r));
+      // without a number the row doesn't need the column (added later)
+      const { reference, ...rest } = r;
+      check(await sb.from('import_requests').insert(reference ? r : rest));
     },
 
     async listImportRequests(limit) {

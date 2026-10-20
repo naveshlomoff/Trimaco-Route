@@ -301,6 +301,8 @@ export interface ImportRequest {
   id?: string;
   created_at?: string;
   created_by?: string | null;
+  /** Adi's own number for the shipment (an order or file number). */
+  reference?: string | null;
   supplier: string | null;
   country: string;
   weight_kg: number;
