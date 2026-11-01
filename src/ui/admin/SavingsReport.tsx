@@ -6,7 +6,6 @@ import { computeShadow } from '../../lib/shadow';
 import { store, type DaySummary } from '../../lib/store';
 import type { AdviceDecision, TaskRow } from '../../lib/types';
 import { addDays, BASELINE_DAYS, hoursLabel, teamUtilization } from '../../lib/week';
-import type { ImportRequest } from '../../imports/model';
 import { loadRates } from './Savings';
 
 const dm = (iso: string) => `${fromISODate(iso).getDate()}.${fromISODate(iso).getMonth() + 1}`;
@@ -22,8 +21,6 @@ const plus = (a: Amount, b: Amount): Amount => ({
 
 interface Data {
   decisions: AdviceDecision[];
-  requests: ImportRequest[];
-  invoices: { overcharge: number }[];
   days: DaySummary[];
   tasks: TaskRow[];
 }
@@ -41,18 +38,11 @@ export function SavingsReport() {
     (async () => {
       const decisions = await store().listAdvice('2026-01-01', today);
       const from = decisions.map((d) => d.date).sort()[0] ?? today;
-      const [requests, invoices, days, tasks] = await Promise.all([
-        store()
-          .listImportRequests(1000)
-          .catch(() => [] as ImportRequest[]),
-        store()
-          .listImportInvoices()
-          .then((all) => all.filter((i) => i.source === 'upload'))
-          .catch(() => []),
+      const [days, tasks] = await Promise.all([
         store().daysBetween(from, today),
         store().tasksBetween(addDays(from, -BASELINE_DAYS), today),
       ]);
-      if (alive) setData({ decisions, requests, invoices, days, tasks });
+      if (alive) setData({ decisions, days, tasks });
     })().catch((e) => alive && setError(e instanceof Error ? e.message : String(e)));
     return () => {
       alive = false;
@@ -108,7 +98,6 @@ export function SavingsReport() {
   const biggest = [...r.declinedList]
     .sort((a, b) => moneyOf(b.saved_min, b.saved_km, rates) - moneyOf(a.saved_min, a.saved_km, rates))
     .slice(0, 4);
-  const im = r.imports;
 
   return (
     <div className="stack">
@@ -227,14 +216,6 @@ export function SavingsReport() {
               <b>בממוצע לשבוע:</b> נחסכו {shekels(r.accepted.money / Math.max(r.weeksElapsed, 1))}, ועוד{' '}
               {shekels(missed.money / Math.max(r.weeksElapsed, 1))} היו אפשריים
             </li>
-            {im.choices > 0 && (
-              <li>
-                <b>Trimaco Imports:</b> {im.choices} בחירות מוביל
-                {im.withAdvice ? `, ${pct(im.followed / im.withAdvice)} לפי ההמלצה` : ''}
-                {im.missedCount ? `. בחירה יקרה מהמומלץ: כ-${shekels(im.missed)}` : ''}
-                {im.flagged ? `. חריגות אפשריות בחשבוניות: כ-${shekels(im.overcharge)}` : ''}
-              </li>
-            )}
           </ul>
         </section>
 

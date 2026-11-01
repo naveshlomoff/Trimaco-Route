@@ -27,19 +27,6 @@ export interface SavingsWeek {
   ignored: Amount;
 }
 
-export interface ImportsSavings {
-  /** Carrier choices recorded. */
-  choices: number;
-  withAdvice: number;
-  followed: number;
-  /** A carrier other than the recommended one, at a known higher cost. */
-  missedCount: number;
-  missed: number;
-  /** Possible overcharges found in the checked invoices. */
-  flagged: number;
-  overcharge: number;
-}
-
 export interface SavingsReport {
   /** The first suggestion's day; null before any. */
   from: string | null;
@@ -52,7 +39,6 @@ export interface SavingsReport {
   declinedList: AdviceDecision[];
   /** Weeks since the first suggestion, for a yearly pace. */
   weeksElapsed: number;
-  imports: ImportsSavings;
 }
 
 export const moneyOf = (min: number, km: number, rates: Rates) => km * rates.perKm + (min / 60) * rates.perHour;
@@ -65,8 +51,6 @@ function amount(ds: AdviceDecision[], rates: Rates): Amount {
 
 export function computeSavings(input: {
   decisions: AdviceDecision[];
-  requests: { recommended: string | null; recommended_cost: number | null; chosen: string; chosen_cost: number | null }[];
-  invoices: { overcharge: number }[];
   rates: Rates;
   today: string;
 }): SavingsReport {
@@ -89,12 +73,6 @@ export function computeSavings(input: {
   }
   const days = from ? (Date.parse(today) - Date.parse(from)) / 86_400_000 + 1 : 0;
 
-  const withAdvice = input.requests.filter((r) => r.recommended);
-  const missed = withAdvice.filter(
-    (r) => r.chosen !== r.recommended && r.chosen_cost !== null && r.recommended_cost !== null && r.chosen_cost > r.recommended_cost,
-  );
-  const flagged = input.invoices.filter((i) => i.overcharge > 0);
-
   return {
     from,
     to: today,
@@ -104,15 +82,6 @@ export function computeSavings(input: {
     weeks,
     declinedList: decisions.filter((d) => d.decision === 'declined').sort((a, b) => b.saved_min - a.saved_min),
     weeksElapsed: days / 7,
-    imports: {
-      choices: input.requests.length,
-      withAdvice: withAdvice.length,
-      followed: withAdvice.filter((r) => r.chosen === r.recommended).length,
-      missedCount: missed.length,
-      missed: missed.reduce((s, r) => s + (r.chosen_cost! - r.recommended_cost!), 0),
-      flagged: flagged.length,
-      overcharge: flagged.reduce((s, i) => s + i.overcharge, 0),
-    },
   };
 }
 
@@ -138,9 +107,6 @@ export function savingsText(r: SavingsReport, rates: Rates): string {
   const year = perYear(r.accepted.money, r);
   const all = perYear(r.accepted.money + r.declined.money + r.ignored.money, r);
   if (year !== null && all !== null) lines.push(`בקצב הזה: כ-${shekels(year)} בשנה, וכ-${shekels(all)} אם כל ההצעות היו מועברות`);
-  const im = r.imports;
-  if (im.missedCount) lines.push(`יבוא: ${im.missedCount} משלוחים לא עם המוביל המומלץ, הפרש של כ-${shekels(im.missed)}`);
-  if (im.flagged) lines.push(`יבוא: חריגות אפשריות בחשבוניות כ-${shekels(im.overcharge)}`);
   lines.push(`הערכה: ${rates.perKm} ₪ לק״מ ו-${rates.perHour} ₪ לשעת נהג, זמני נסיעה בלי פקקים.`);
   return lines.join('\n');
 }

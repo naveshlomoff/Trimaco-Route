@@ -23,7 +23,7 @@ describe('computeSavings', () => {
     d('2026-10-07', 'ignored', 10, 5),
     d('2026-10-08', 'declined', 20, 15),
   ];
-  const r = computeSavings({ decisions, requests: [], invoices: [], rates, today: '2026-10-22' });
+  const r = computeSavings({ decisions, rates, today: '2026-10-22' });
 
   it('adds up what was saved, what was declined and what got no answer, in money', () => {
     // minutes at 1 ₪ a minute, plus a shekel a km
@@ -44,21 +44,6 @@ describe('computeSavings', () => {
     const text = savingsText(r, rates);
     expect(text).toContain('הצעות שהועברו: 2. נחסכו כ-75 ₪');
     expect(text).toContain('הצעות שנדחו: 2. היה אפשר לחסוך עוד כ-145 ₪');
-  });
-
-  it('counts imports choices away from a cheaper recommendation', () => {
-    const im = computeSavings({
-      decisions: [],
-      requests: [
-        { recommended: 'KRIEF', recommended_cost: 1000, chosen: 'KRIEF', chosen_cost: 1000 },
-        { recommended: 'KRIEF', recommended_cost: 1000, chosen: 'מעיין', chosen_cost: 1300 },
-        { recommended: 'KRIEF', recommended_cost: 1000, chosen: 'אחר', chosen_cost: null },
-      ],
-      invoices: [{ overcharge: 0 }, { overcharge: 250 }],
-      rates,
-      today: '2026-10-22',
-    }).imports;
-    expect(im).toEqual({ choices: 3, withAdvice: 3, followed: 1, missedCount: 1, missed: 300, flagged: 1, overcharge: 250 });
   });
 });
 

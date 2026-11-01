@@ -5,7 +5,6 @@ import { computeSavings, DEFAULT_RATES, moneyOf, perYear, savingsText, shekels, 
 import { store } from '../../lib/store';
 import type { AdviceDecision } from '../../lib/types';
 import { hoursLabel } from '../../lib/week';
-import type { ImportRequest } from '../../imports/model';
 import { copyText } from '../clipboard';
 import { Tile } from '../components';
 
@@ -28,7 +27,7 @@ const detail = (a: Amount) => `${a.count === 1 ? 'הצעה אחת' : `${a.count}
 export function Savings() {
   const { workers } = useApp();
   const today = toISODate(new Date());
-  const [data, setData] = useState<{ decisions: AdviceDecision[]; requests: ImportRequest[]; invoices: { overcharge: number }[] } | null>(
+  const [data, setData] = useState<{ decisions: AdviceDecision[] } | null>(
     null,
   );
   const [error, setError] = useState<string | null>(null);
@@ -36,17 +35,9 @@ export function Savings() {
   const [copied, setCopied] = useState<boolean | null>(null);
 
   useEffect(() => {
-    Promise.all([
-      store().listAdvice('2026-01-01', today),
-      store()
-        .listImportRequests(1000)
-        .catch(() => [] as ImportRequest[]),
-      store()
-        .listImportInvoices()
-        .then((all) => all.filter((i) => i.source === 'upload'))
-        .catch(() => []),
-    ])
-      .then(([decisions, requests, invoices]) => setData({ decisions, requests, invoices }))
+    store()
+      .listAdvice('2026-01-01', today)
+      .then((decisions) => setData({ decisions }))
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   }, [today]);
 
@@ -205,27 +196,6 @@ export function Savings() {
             </section>
           )}
         </>
-      )}
-
-      {report && report.imports.choices > 0 && (
-        <section className="card stack-sm">
-          <h2 className="h2">Trimaco Imports</h2>
-          <p>
-            נרשמו {report.imports.choices} בחירות מוביל
-            {report.imports.withAdvice > 0 && `, ההמלצה נבחרה ב-${report.imports.followed} מתוך ${report.imports.withAdvice}`}.
-          </p>
-          {report.imports.missedCount > 0 && (
-            <p>
-              ב-{report.imports.missedCount} משלוחים נבחר מוביל יקר מהמומלץ: הפרש מוערך של כ-{shekels(report.imports.missed)}.
-            </p>
-          )}
-          {report.imports.flagged > 0 && (
-            <p>
-              בבדיקת החשבוניות נמצאו חריגות אפשריות של כ-{shekels(report.imports.overcharge)} ב-{report.imports.flagged}{' '}
-              חשבוניות. זה חיסכון רק אם המוביל מזכה.
-            </p>
-          )}
-        </section>
       )}
     </div>
   );
