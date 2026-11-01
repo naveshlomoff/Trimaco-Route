@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeSavings, perYear, savingsText } from './savings';
+import { computeSavings, pastedDays, perYear, savingsText } from './savings';
 import type { AdviceDecision } from './types';
 
 const d = (date: string, decision: AdviceDecision['decision'], saved_min: number, saved_km: number): AdviceDecision => ({
@@ -59,5 +59,12 @@ describe('computeSavings', () => {
       today: '2026-10-22',
     }).imports;
     expect(im).toEqual({ choices: 3, withAdvice: 3, followed: 1, missedCount: 1, missed: 300, flagged: 1, overcharge: 250 });
+  });
+});
+
+describe('pastedDays', () => {
+  it('counts Sunday to Thursday only', () => {
+    // 2026-10-04 is a Sunday; the 9th and 10th are Friday and Saturday
+    expect(pastedDays('2026-10-04', '2026-10-11', ['2026-10-04', '2026-10-05', '2026-10-09'])).toEqual({ pasted: 2, due: 6 });
   });
 });

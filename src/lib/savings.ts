@@ -144,3 +144,16 @@ export function savingsText(r: SavingsReport, rates: Rates): string {
   lines.push(`הערכה: ${rates.perKm} ₪ לק״מ ו-${rates.perHour} ₪ לשעת נהג, זמני נסיעה בלי פקקים.`);
   return lines.join('\n');
 }
+
+/** Work days (Sunday to Thursday) from `from` to `today`, and how many of them had a schedule pasted. */
+export function pastedDays(from: string, today: string, saved: string[]): { pasted: number; due: number } {
+  const have = new Set(saved);
+  let pasted = 0;
+  let due = 0;
+  for (let d = from; d <= today; d = addDays(d, 1)) {
+    if (new Date(`${d}T12:00:00`).getDay() > 4) continue;
+    due++;
+    if (have.has(d)) pasted++;
+  }
+  return { pasted, due };
+}

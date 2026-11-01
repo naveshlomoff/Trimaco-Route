@@ -12,7 +12,7 @@ import { Tile } from '../components';
 const RATES_KEY = 'trimaco.savings.rates';
 const dm = (iso: string) => `${fromISODate(iso).getDate()}.${fromISODate(iso).getMonth() + 1}`;
 
-function loadRates(): Rates {
+export function loadRates(): Rates {
   try {
     const r = JSON.parse(localStorage.getItem(RATES_KEY) ?? 'null');
     if (r && r.perKm >= 0 && r.perHour >= 0) return r;
@@ -77,9 +77,16 @@ export function Savings() {
             סיכום חיסכון{' '}
             {report?.from && <span className="muted">{`${dm(report.from)}–${dm(report.to)}`}</span>}
           </h1>
-          <a className="btn btn-small" href="#/admin/week">
-            סיכום שבועי
-          </a>
+          <div className="row">
+            {report?.from && (
+              <a className="btn btn-primary btn-small" href="#/admin/savings/report">
+                דוח PDF
+              </a>
+            )}
+            <a className="btn btn-small" href="#/admin/week">
+              סיכום שבועי
+            </a>
+          </div>
         </div>
         <p className="muted small">
           כל הצעה לשיפור נשמרת עם הנהיגה שהיא חוסכת (דקות וק״מ, הערכה לפי מרחק בלי פקקים). כאן זה מתורגם לכסף לפי

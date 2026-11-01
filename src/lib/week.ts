@@ -75,7 +75,7 @@ export interface WeekInput {
 
 const isWorkDay = (iso: string) => fromISODate(iso).getDay() < WORK_DAYS;
 
-function teamUtilization(drivers: { days: number; utilization: number }[]): number | null {
+export function teamUtilization(drivers: { days: number; utilization: number }[]): number | null {
   const days = drivers.reduce((s, d) => s + d.days, 0);
   return days ? drivers.reduce((s, d) => s + d.utilization * d.days, 0) / days : null;
 }
