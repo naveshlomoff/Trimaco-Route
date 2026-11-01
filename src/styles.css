@@ -928,11 +928,11 @@ tr.muted td {
   background: var(--brand);
   color: #fff;
 }
-.rep-year-title { font-size: 17px; font-weight: 800; }
+.rep-year-title { font-size: 18px; font-weight: 800; }
 .rep-year-note { font-size: 10.5px; font-weight: 400; opacity: 0.85; }
 .rep-year-num { text-align: center; }
-.rep-year-value { font-size: 30px; font-weight: 800; line-height: 1.15; }
-.rep-year-label { font-size: 11.5px; opacity: 0.9; }
+.rep-year-value { font-size: 38px; font-weight: 900; line-height: 1.1; }
+.rep-year-label { font-size: 12px; font-weight: 600; opacity: 0.95; }
 .rep-block { margin-top: 12px; }
 .rep-h { font-size: 14.5px; font-weight: 800; color: var(--brand-dark); margin: 0 0 6px; }
 .rep-chart {
