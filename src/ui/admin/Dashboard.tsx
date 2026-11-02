@@ -96,6 +96,9 @@ export function Dashboard() {
             <a className="btn btn-primary btn-small" href="#/admin/savings">
               סיכום חיסכון
             </a>
+            <a className="btn btn-primary btn-small" href="#/admin/drivers">
+              ניצולת נהגים
+            </a>
           </div>
           <div className="segmented">
             {RANGES.map((r) => (

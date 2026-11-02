@@ -7,6 +7,7 @@ import { ImportsHistory } from './imports/ui/ImportsHistory';
 import { InvoiceCheck } from './imports/ui/InvoiceCheck';
 import { canUseImports, deviceCode, type Place, type Profile, type Worker } from './lib/types';
 import { Dashboard } from './ui/admin/Dashboard';
+import { Drivers } from './ui/admin/Drivers';
 import { ImportChat } from './ui/admin/ImportChat';
 import { Places } from './ui/admin/Places';
 import { Users } from './ui/admin/Users';
@@ -179,6 +180,7 @@ function route(path: string, isAdmin: boolean) {
   if (isAdmin && path === '/admin/users') return <Users />;
   if (isAdmin && path === '/admin/savings') return <Savings />;
   if (isAdmin && path === '/admin/savings/report') return <SavingsReport />;
+  if (isAdmin && path === '/admin/drivers') return <Drivers />;
   const week = path.match(/^\/admin\/week(?:\/(\d{4}-\d{2}-\d{2}))?$/);
   if (isAdmin && week) return <Week key={week[1] ?? 'now'} date={week[1]} />;
   return <Home />;
